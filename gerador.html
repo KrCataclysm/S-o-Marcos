@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Criticidade de Fornecedores — HSM Central de Compras</title>
+<script src="assets/vendor/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="assets/css/painel.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">Hospital São Marcos — APCC</div>
+    <h1>Painel de Criticidade de Fornecedores</h1>
+    <div class="sub">Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas</div>
+  </div>
+  <div style="text-align:right;">
+    <nav class="app-nav no-print">
+      <a href="gerador.html" class="active">Gerar painel</a>
+      <a href="historico.html">Histórico</a>
+      <button type="button" class="link" id="btnSair">Sair</button>
+    </nav>
+    <div class="sub" id="hoje" style="margin-top:6px;"></div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ ETAPAS ============ -->
+  <div class="steps no-print">
+    <div class="step">
+      <h2>1 · Base de compras (12 meses)</h2>
+      <p class="hint">Export do sistema com o histórico de entradas (.xls ou .xlsx) — colunas <b>dt_entrada, nm_fornecedor, nm_produto, generico, qt_item, vl_item</b>. Carregue uma vez; fica salva neste navegador e só precisa ser atualizada quando você gerar um novo export.</p>
+      <input type="file" id="fileBase" accept=".xls,.xlsx">
+      <div class="status" id="stBase"></div>
+    </div>
+    <div class="step">
+      <h2>2 · Saldo do dia + consumo 3 meses</h2>
+      <p class="hint">Export diário (.xlsx) — colunas <b>nm_produto, nm_produto1, nm_local, sd_estoque, qt_item3meses</b>. Os saldos e consumos de todos os locais são somados por produto.</p>
+      <input type="file" id="fileSaldo" accept=".xls,.xlsx">
+      <div class="status" id="stSaldo"></div>
+    </div>
+    <div class="step">
+      <h2>3 · Fornecedores da pauta (bloqueados)</h2>
+      <p class="hint">Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>.</p>
+      <textarea id="txtPauta" placeholder="*Oncoexo - Quimioterapias - R$ 82.919,49 - Junior/ Juliana (8093/ 8030)&#10;Fresenius Medical Care Ltda - Hemodiálise - R$ 8.113,00 - Juliana (8030)&#10;..."></textarea>
+      <button class="btn-ghost" id="btnLerPauta" style="margin-top:8px;">Identificar fornecedores</button>
+      <div class="status" id="stPauta"></div>
+      <div class="sup-list" id="supList"></div>
+    </div>
+    <div class="step" style="border-top-color:#9aa7ba;">
+      <h2>4 · Ponto de pedido do dia <span style="font-size:11px;color:#5c6675;font-weight:400;">(opcional)</span></h2>
+      <p class="hint">Relatório diário de Medicamentos e Materiais (.xls) — abas <b>Materiais / Medicamentos / Quimioterápicos</b>. Acrescenta ao painel a <b>quantidade em trânsito</b> e sinaliza itens que já atingiram o ponto de pedido.</p>
+      <input type="file" id="fileRel" accept=".xls,.xlsx">
+      <div class="status" id="stRel"></div>
+    </div>
+  </div>
+
+  <div class="toolbar-generate no-print">
+    <label class="small" style="margin:0;">Data da pauta&nbsp;
+      <input type="date" id="dtPauta">
+    </label>
+    <label class="small" style="margin:0;">Janela de análise&nbsp;
+      <select id="selJanela">
+        <option value="90" selected>90 dias</option>
+        <option value="180">180 dias</option>
+        <option value="365">365 dias</option>
+      </select>
+    </label>
+    <label class="small" style="margin:0;">Seu nome <span style="font-weight:400;">(opcional)</span>&nbsp;
+      <input type="text" id="txtGeradoPor" placeholder="Ex.: Juliana" style="width:160px;">
+    </label>
+    <button class="btn-primary" id="btnGerar" disabled>Gerar painel</button>
+    <button class="btn-ghost" id="btnExcel" style="display:none;">Exportar Excel</button>
+    <button class="btn-ghost" id="btnPrint" style="display:none;">Imprimir / PDF</button>
+    <button class="btn-ghost" id="btnLimparBase" title="Apaga a base de compras salva neste navegador">Limpar base salva</button>
+  </div>
+
+  <div class="save-toast no-print" id="saveToast"></div>
+
+  <!-- ============ PAINEL ============ -->
+  <div id="painel">
+    <div class="panel-head">
+      <h2 id="pTitulo">Painel de Criticidade — Pauta de Pagamento</h2>
+      <div class="meta" id="pMeta"></div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <section class="block">
+      <h3>Régua de criticidade adotada</h3>
+      <p class="desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
+      <table class="regua" id="regua">
+        <thead><tr><th>Cobertura ↓ / 2ª fonte →</th><th>SEM 2ª fonte</th><th>COM 2ª fonte</th></tr></thead>
+        <tbody>
+          <tr><td class="rowlab">Ruptura / ≤ 15 dias</td>
+              <td class="cell c-critmax" data-f="Crítico máximo">Crítico máximo<span class="cnt"></span></td>
+              <td class="cell c-crit" data-f="Crítico">Crítico<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">15 a 45 dias</td>
+              <td class="cell c-crit" data-f="Crítico">Crítico<span class="cnt"></span></td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">&gt; 45 dias</td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td>
+              <td class="cell c-monitorar" data-f="Monitorar">Monitorar<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">Sem informação</td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td>
+              <td class="cell c-monitorar" data-f="Monitorar">Monitorar<span class="cnt"></span></td></tr>
+        </tbody>
+      </table>
+      <div id="distrib"></div>
+    </section>
+
+    <section class="block">
+      <h3>Resumo por fornecedor</h3>
+      <p class="desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
+      <div class="tbl-wrap" style="max-height:420px;">
+        <table id="tblForn"></table>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Detalhamento — itens × fornecedores bloqueados × estoque</h3>
+      <div class="filters no-print">
+        <input type="text" id="fBusca" placeholder="Buscar item, fornecedor, comprador…">
+        <span class="chip" id="chipTodos">Mostrar todos</span>
+        <span class="legend" id="fInfo"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table id="tblDet"></table>
+      </div>
+      <div class="footnote">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados. “Em trânsito” e o alerta de ponto de pedido vêm do relatório diário de Medicamentos e Materiais, quando carregado.</div>
+    </section>
+  </div>
+</main>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/painel-common.js"></script>
+<script src="assets/js/painel-render.js"></script>
+<script src="assets/js/painel-engine.js"></script>
+<script>
+(function init(){
+  if (!requireAuth()) return;
+  $('btnSair').addEventListener('click', logout);
+
+  initGeradorInteractions();
+  initPanelInteractions();
+  initGeradorState();
+
+  function showToast(msg, cls) {
+    const el = $('saveToast');
+    el.textContent = msg;
+    el.className = 'save-toast show ' + cls;
+  }
+
+  $('btnGerar').addEventListener('click', async () => {
+    const result = gerarPainel();
+    showPainel(result);
+    $('saveToast').className = 'save-toast';
+
+    const kpis = calcKpis(result.detalhe, result.resumoForn);
+    const dataPauta = result.dtP.toISOString().slice(0, 10);
+    showToast('Salvando no histórico…', 'warn');
+    const { error } = await callAuthed('rpc_save_painel', {
+      p_data_pauta: dataPauta,
+      p_janela_analise: result.W,
+      p_gerado_por: $('txtGeradoPor').value.trim(),
+      p_kpis: kpis,
+      p_resumo_fornecedores: result.resumoForn,
+      p_detalhamento: result.detalhe
+    });
+    if (error) {
+      showToast('Painel gerado, mas não foi possível salvar no histórico: ' + error.message, 'err');
+    } else {
+      showToast('Painel salvo no histórico.', 'ok');
+    }
+  });
+})();
+</script>
+</body>
+</html>

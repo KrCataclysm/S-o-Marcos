@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Criticidade — Histórico (HSM)</title>
+<script src="assets/vendor/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="assets/css/painel.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">Hospital São Marcos — APCC</div>
+    <h1>Painel de Criticidade de Fornecedores</h1>
+    <div class="sub">Registro histórico · somente leitura</div>
+  </div>
+  <nav class="app-nav no-print">
+    <a href="gerador.html">Gerar painel</a>
+    <a href="historico.html">Histórico</a>
+    <button type="button" class="link" id="btnSair">Sair</button>
+  </nav>
+</header>
+
+<main>
+  <div id="loadWrap"><div class="hist-loading">Carregando painel…</div></div>
+
+  <div id="banner" class="readonly-banner no-print" style="display:none;"></div>
+
+  <div class="toolbar-generate no-print">
+    <button class="btn-ghost" id="btnExcel" style="display:none;">Exportar Excel</button>
+    <button class="btn-ghost" id="btnPrint" style="display:none;">Imprimir / PDF</button>
+  </div>
+
+  <!-- ============ PAINEL (mesma estrutura do gerador) ============ -->
+  <div id="painel">
+    <div class="panel-head">
+      <h2 id="pTitulo">Painel de Criticidade — Pauta de Pagamento</h2>
+      <div class="meta" id="pMeta"></div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <section class="block">
+      <h3>Régua de criticidade adotada</h3>
+      <p class="desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
+      <table class="regua" id="regua">
+        <thead><tr><th>Cobertura ↓ / 2ª fonte →</th><th>SEM 2ª fonte</th><th>COM 2ª fonte</th></tr></thead>
+        <tbody>
+          <tr><td class="rowlab">Ruptura / ≤ 15 dias</td>
+              <td class="cell c-critmax" data-f="Crítico máximo">Crítico máximo<span class="cnt"></span></td>
+              <td class="cell c-crit" data-f="Crítico">Crítico<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">15 a 45 dias</td>
+              <td class="cell c-crit" data-f="Crítico">Crítico<span class="cnt"></span></td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">&gt; 45 dias</td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td>
+              <td class="cell c-monitorar" data-f="Monitorar">Monitorar<span class="cnt"></span></td></tr>
+          <tr><td class="rowlab">Sem informação</td>
+              <td class="cell c-atencao" data-f="Atenção">Atenção<span class="cnt"></span></td>
+              <td class="cell c-monitorar" data-f="Monitorar">Monitorar<span class="cnt"></span></td></tr>
+        </tbody>
+      </table>
+      <div id="distrib"></div>
+    </section>
+
+    <section class="block">
+      <h3>Resumo por fornecedor</h3>
+      <p class="desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
+      <div class="tbl-wrap" style="max-height:420px;">
+        <table id="tblForn"></table>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Detalhamento — itens × fornecedores bloqueados × estoque</h3>
+      <div class="filters no-print">
+        <input type="text" id="fBusca" placeholder="Buscar item, fornecedor, comprador…">
+        <span class="chip" id="chipTodos">Mostrar todos</span>
+        <span class="legend" id="fInfo"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table id="tblDet"></table>
+      </div>
+      <div class="footnote">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados.</div>
+    </section>
+  </div>
+
+  <p class="no-print" style="margin-top:8px;"><a href="historico.html" class="btn-ghost" style="display:inline-block; text-decoration:none;">&larr; Voltar ao histórico</a></p>
+</main>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/painel-common.js"></script>
+<script src="assets/js/painel-render.js"></script>
+<script>
+(function init(){
+  if (!requireAuth()) return;
+  $('btnSair').addEventListener('click', logout);
+  initPanelInteractions();
+
+  const id = new URLSearchParams(window.location.search).get('id');
+  if (!id) { $('loadWrap').innerHTML = '<div class="hist-error">Registro não informado.</div>'; return; }
+
+  (async () => {
+    const { data, error } = await callAuthed('rpc_get_painel', { p_id: id });
+    if (error || !data || !data.length) {
+      $('loadWrap').innerHTML = '<div class="hist-error">Não foi possível carregar este registro' + (error ? ': ' + error.message : '.') + '</div>';
+      return;
+    }
+    const p = data[0];
+    $('loadWrap').innerHTML = '';
+    const banner = $('banner');
+    banner.style.display = 'flex';
+    banner.innerHTML = '<span>&#128274;</span><span>Modo somente leitura — gerado em ' +
+      new Date(p.gerado_em).toLocaleString('pt-BR') +
+      (p.gerado_por ? ' por <b>' + p.gerado_por + '</b>' : '') + '.</span>';
+
+    showPainel({
+      detalhe: p.detalhamento,
+      resumoForn: p.resumo_fornecedores,
+      dtP: new Date(p.data_pauta + 'T12:00:00'),
+      W: p.janela_analise
+    });
+  })();
+})();
+</script>
+</body>
+</html>
