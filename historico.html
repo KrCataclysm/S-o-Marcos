@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Histórico — Painel de Criticidade de Fornecedores (HSM)</title>
+<link rel="stylesheet" href="assets/css/painel.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">Hospital São Marcos — APCC</div>
+    <h1>Painel de Criticidade de Fornecedores</h1>
+    <div class="sub">Histórico de rodadas geradas</div>
+  </div>
+  <nav class="app-nav no-print">
+    <a href="gerador.html">Gerar painel</a>
+    <a href="historico.html" class="active">Histórico</a>
+    <button type="button" class="link" id="btnSair">Sair</button>
+  </nav>
+</header>
+
+<main>
+  <div class="hist-toolbar">
+    <div>
+      <h2>Histórico de painéis</h2>
+      <p>Rodadas anteriores, mais recente primeiro. Clique para abrir em modo somente leitura.</p>
+    </div>
+  </div>
+
+  <div id="listWrap"><div class="hist-loading">Carregando histórico…</div></div>
+</main>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/painel-common.js"></script>
+<script>
+(function init(){
+  if (!requireAuth()) return;
+  $('btnSair').addEventListener('click', logout);
+
+  (async () => {
+    const wrap = $('listWrap');
+    const { data, error } = await callAuthed('rpc_list_paineis', {});
+    if (error) {
+      wrap.innerHTML = '<div class="hist-error">Não foi possível carregar o histórico: ' + error.message + '</div>';
+      return;
+    }
+    if (!data || !data.length) {
+      wrap.innerHTML = '<div class="hist-empty">Nenhum painel gerado ainda. Vá em “Gerar painel” para criar o primeiro.</div>';
+      return;
+    }
+    wrap.innerHTML = '<div class="hist-list">' + data.map(p => {
+      const dt = new Date(p.data_pauta + 'T12:00:00').toLocaleDateString('pt-BR');
+      const geradoEm = new Date(p.gerado_em).toLocaleString('pt-BR');
+      const k = p.kpis || {};
+      return `<a class="hist-item" href="historico-ver.html?id=${p.id}">
+        <div class="data">${dt}</div>
+        <div class="kpis">
+          <div>Fornecedores<br><b>${k.fornecedores ?? '—'}</b></div>
+          <div>Valor da pauta<br><b>R$ ${k.valorTotal != null ? fmtBR(k.valorTotal) : '—'}</b></div>
+          <div class="crit">Itens críticos<br><b>${k.itensCriticos ?? '—'}</b></div>
+          <div>Itens analisados<br><b>${k.itensAnalisados ?? '—'}</b></div>
+          <div>Janela<br><b>${p.janela_analise}d</b></div>
+        </div>
+        <div class="meta">Gerado em ${geradoEm}${p.gerado_por ? ' · por ' + p.gerado_por : ''}</div>
+      </a>`;
+    }).join('') + '</div>';
+  })();
+})();
+</script>
+</body>
+</html>

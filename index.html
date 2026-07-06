@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acesso — Painel de Criticidade de Fornecedores (HSM)</title>
+<link rel="stylesheet" href="assets/css/painel.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="brand">Hospital São Marcos — APCC</div>
+    <h1>Painel de Criticidade de Fornecedores</h1>
+    <p class="sub">Acesso restrito. Informe a senha para entrar.</p>
+    <form id="frmLogin" autocomplete="off">
+      <input type="password" id="txtSenha" placeholder="Senha de acesso" autofocus required>
+      <button type="submit" class="btn-primary" id="btnEntrar">Entrar</button>
+    </form>
+    <div class="msg" id="msg"></div>
+    <div class="footnote sub">Central de Compras · uso interno</div>
+  </div>
+</div>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/painel-common.js"></script>
+<script>
+(function initLogin(){
+  const existing = getSession();
+  if (existing) { window.location.href = 'gerador.html'; return; }
+
+  const form = $('frmLogin'), input = $('txtSenha'), btn = $('btnEntrar'), msg = $('msg');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const senha = input.value;
+    if (!senha) return;
+    btn.disabled = true; btn.textContent = 'Verificando…';
+    msg.textContent = ''; msg.className = 'msg';
+    try {
+      const { data, error } = await supabaseClient.rpc('rpc_login', { p_password: senha });
+      if (error || !data || !data.length) throw new Error('Senha incorreta.');
+      const { token, expires_at } = data[0];
+      setSession(token, expires_at);
+      msg.className = 'msg ok'; msg.textContent = 'Acesso liberado.';
+      window.location.href = 'gerador.html';
+    } catch (err) {
+      msg.className = 'msg err'; msg.textContent = 'Senha incorreta. Tente novamente.';
+      input.value = ''; input.focus();
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+  });
+})();
+</script>
+</body>
+</html>
