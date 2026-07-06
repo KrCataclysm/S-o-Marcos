@@ -41,20 +41,20 @@ python3 -m http.server 8000
 
 e abrir `http://localhost:8000/index.html`.
 
-## Deploy (Cloudflare Pages)
+## Deploy (GitHub Pages)
 
-1. No painel da Cloudflare, crie um projeto Pages conectado a este
-   repositório GitHub (branch de produção: `main`).
-2. Configurações de build:
-   - Framework preset: **None**
-   - Build command: *(vazio)*
-   - Build output directory: `/`
-3. Não é necessário nenhuma variável de ambiente — a URL e a chave pública
-   (anon) do Supabase já estão em `assets/js/supabase-client.js` (a chave
-   anon é pública por design; o acesso real é protegido por RLS + RPC).
+Publicado via GitHub Actions (`.github/workflows/pages.yml`) — sem build,
+sobe os arquivos estáticos da raiz do repositório a cada push na `main`.
 
-Com o repositório conectado, cada push na branch de produção gera um novo
-deploy automaticamente.
+1. No repositório, em **Settings → Pages**, em "Build and deployment",
+   Source deve estar como **GitHub Actions** (já configurado).
+2. Cada push na `main` dispara o workflow e publica automaticamente.
+3. A URL fica disponível em **Settings → Pages** (formato
+   `https://<usuario>.github.io/<repositorio>/`).
+
+Não é necessário nenhuma variável de ambiente — a URL e a chave pública
+(anon) do Supabase já estão em `assets/js/supabase-client.js` (a chave
+anon é pública por design; o acesso real é protegido por RLS + RPC).
 
 ## Banco de dados (Supabase)
 
