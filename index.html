@@ -15,15 +15,16 @@
 <body>
 <div class="login-wrap">
   <div class="login-card">
+    <img class="header-logo" data-logo alt="Logo">
     <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
     <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
-    <p class="sub">Acesso restrito. Informe a senha para entrar.</p>
+    <p class="sub" data-txt="login_subtitulo">Acesso restrito. Informe a senha para entrar.</p>
     <form id="frmLogin" autocomplete="off">
-      <input type="password" id="txtSenha" placeholder="Senha de acesso" autofocus required>
-      <button type="submit" class="btn-primary" id="btnEntrar">Entrar</button>
+      <input type="password" id="txtSenha" data-txt-placeholder="login_placeholder_senha" placeholder="Senha de acesso" autofocus required>
+      <button type="submit" class="btn-primary" id="btnEntrar" data-txt="login_botao">Entrar</button>
     </form>
     <div class="msg" id="msg"></div>
-    <div class="footnote sub">Central de Compras · uso interno</div>
+    <div class="footnote sub" data-txt="login_rodape">Central de Compras · uso interno</div>
   </div>
 </div>
 

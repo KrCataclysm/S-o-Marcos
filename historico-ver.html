@@ -15,10 +15,13 @@
 </head>
 <body>
 <header>
-  <div>
-    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
-    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
-    <div class="sub">Registro histórico · somente leitura</div>
+  <div class="header-brand">
+    <img class="header-logo" data-logo alt="Logo">
+    <div>
+      <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+      <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
+      <div class="sub" data-txt="subtitulo_historico_ver">Registro histórico · somente leitura</div>
+    </div>
   </div>
   <nav class="app-nav no-print">
     <a href="gerador.html">Gerar painel</a>
@@ -48,8 +51,8 @@
     <div class="cards" id="cards"></div>
 
     <section class="block">
-      <h3>Régua de criticidade adotada</h3>
-      <p class="desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
+      <h3 data-txt="regua_titulo">Régua de criticidade adotada</h3>
+      <p class="desc" data-txt-html="regua_desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
       <table class="regua" id="regua">
         <thead><tr><th>Cobertura ↓ / 2ª fonte →</th><th>SEM 2ª fonte</th><th>COM 2ª fonte</th></tr></thead>
         <tbody>
@@ -71,15 +74,15 @@
     </section>
 
     <section class="block">
-      <h3>Resumo por fornecedor</h3>
-      <p class="desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
+      <h3 data-txt="resumo_titulo">Resumo por fornecedor</h3>
+      <p class="desc" data-txt="resumo_desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
       <div class="tbl-wrap" style="max-height:420px;">
         <table id="tblForn"></table>
       </div>
     </section>
 
     <section class="block">
-      <h3>Detalhamento — itens × fornecedores bloqueados × estoque</h3>
+      <h3 data-txt="detalhamento_titulo">Detalhamento — itens × fornecedores bloqueados × estoque</h3>
       <div class="filters no-print">
         <input type="text" id="fBusca" placeholder="Buscar item, fornecedor, comprador…">
         <span class="chip" id="chipTodos">Mostrar todos</span>
@@ -88,7 +91,7 @@
       <div class="tbl-wrap">
         <table id="tblDet"></table>
       </div>
-      <div class="footnote">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados.</div>
+      <div class="footnote" data-txt="detalhamento_rodape">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados.</div>
     </section>
 
     <section class="block no-print" id="comentariosBlock">

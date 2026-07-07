@@ -14,10 +14,13 @@
 </head>
 <body>
 <header>
-  <div>
-    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
-    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
-    <div class="sub">Administração · aparência do sistema</div>
+  <div class="header-brand">
+    <img class="header-logo" data-logo alt="Logo">
+    <div>
+      <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+      <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
+      <div class="sub">Administração · aparência do sistema</div>
+    </div>
   </div>
   <nav class="app-nav no-print">
     <a href="gerador.html">Gerar painel</a>
@@ -43,11 +46,28 @@
 
   <div id="admPainel" style="display:none;">
     <section class="block">
+      <h3>Logo</h3>
+      <p class="desc">Endereço (URL) de uma imagem já publicada em algum lugar (ex.: link direto de uma imagem no Drive, WhatsApp Web, GitHub, etc.). Aparece no cabeçalho de todas as telas e substitui o ícone do navegador (favicon). Deixe em branco para usar só o nome por extenso. O ícone do app instalado no celular/computador (PWA) não muda por aqui — esse continua sendo um arquivo do projeto.</p>
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <img id="logoPreview" alt="" style="width:64px; height:64px; object-fit:contain; border:1px solid var(--line); border-radius:8px; padding:4px; display:none;">
+        <input type="text" id="txtLogoUrl" placeholder="https://…" style="flex:1; min-width:260px;">
+      </div>
+    </section>
+
+    <section class="block">
       <h3>Cores</h3>
       <p class="desc">Aplicadas em todo o sistema, na hora que salvar.</p>
-      <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:center;">
+      <p class="desc" style="margin-top:-6px; margin-bottom:6px; font-weight:600;">Marca</p>
+      <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
         <label class="small">Navy (principal)<br><input type="color" id="corNavy"></label>
-        <label class="small">Vermelho (crítico)<br><input type="color" id="corVermelho"></label>
+        <label class="small">Vermelho (marca)<br><input type="color" id="corVermelho"></label>
+      </div>
+      <p class="desc" style="margin-bottom:6px; font-weight:600;">Régua de criticidade</p>
+      <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:center;">
+        <label class="small">Crítico máximo<br><input type="color" id="corCritmax"></label>
+        <label class="small">Crítico<br><input type="color" id="corCrit"></label>
+        <label class="small">Atenção<br><input type="color" id="corAtencao"></label>
+        <label class="small">Monitorar<br><input type="color" id="corMonitorar"></label>
       </div>
     </section>
 
@@ -64,16 +84,8 @@
 
     <section class="block">
       <h3>Textos</h3>
-      <p class="desc">Textos principais que aparecem no topo de todas as telas.</p>
-      <label class="small">Linha da marca (acima do título)<br>
-        <input type="text" id="txtBrand" style="width:100%;">
-      </label>
-      <label class="small">Título principal<br>
-        <input type="text" id="txtTitulo" style="width:100%;">
-      </label>
-      <label class="small">Subtítulo (só na tela de gerar painel)<br>
-        <input type="text" id="txtSubtitulo" style="width:100%;">
-      </label>
+      <p class="desc">Todo texto fixo do sistema, organizado por tela. Deixar em branco volta ao texto padrão.</p>
+      <div id="textFieldsWrap"></div>
     </section>
 
     <div class="toolbar-generate no-print">
@@ -100,25 +112,122 @@
   if (!requireAuth()) return;
   $('btnSair').addEventListener('click', logout);
 
+  // Para deixar mais um texto editável no ADM sem mexer em SQL: acrescente uma linha aqui
+  // (grupo, key, label) e marque o elemento correspondente com data-txt="key" (ou
+  // data-txt-html/data-txt-placeholder) na tela onde o texto aparece.
+  const TEXT_FIELDS = [
+    { grupo: 'Marca (todas as telas)', key: 'brand_header', label: 'Linha da marca (acima do título)' },
+    { grupo: 'Marca (todas as telas)', key: 'titulo_header', label: 'Título principal' },
+
+    { grupo: 'Tela de login', key: 'login_subtitulo', label: 'Texto abaixo do título' },
+    { grupo: 'Tela de login', key: 'login_placeholder_senha', label: 'Texto dentro do campo de senha' },
+    { grupo: 'Tela de login', key: 'login_botao', label: 'Texto do botão' },
+    { grupo: 'Tela de login', key: 'login_rodape', label: 'Rodapé' },
+
+    { grupo: 'Gerar painel — passos de upload', key: 'subtitulo_gerador', label: 'Subtítulo da tela' },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo1_titulo', label: 'Passo 1 — título' },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo1_texto', label: 'Passo 1 — texto de ajuda', multiline: true },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo2_titulo', label: 'Passo 2 — título' },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo2_texto', label: 'Passo 2 — texto de ajuda', multiline: true },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo3_titulo', label: 'Passo 3 — título' },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo3_texto', label: 'Passo 3 — texto de ajuda', multiline: true },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo4_titulo', label: 'Passo 4 — título' },
+    { grupo: 'Gerar painel — passos de upload', key: 'passo4_texto', label: 'Passo 4 — texto de ajuda', multiline: true },
+
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'regua_titulo', label: 'Título da régua de criticidade' },
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'regua_desc', label: 'Texto explicativo da régua', multiline: true },
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'resumo_titulo', label: 'Título "Resumo por fornecedor"' },
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'resumo_desc', label: 'Texto explicativo do resumo' },
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'detalhamento_titulo', label: 'Título "Detalhamento"' },
+    { grupo: 'Painel gerado (aparece ao gerar e no histórico)', key: 'detalhamento_rodape', label: 'Rodapé explicativo do detalhamento', multiline: true },
+
+    { grupo: 'Histórico', key: 'subtitulo_historico', label: 'Subtítulo no cabeçalho (lista)' },
+    { grupo: 'Histórico', key: 'historico_titulo', label: 'Título da lista' },
+    { grupo: 'Histórico', key: 'historico_desc', label: 'Texto abaixo do título da lista' },
+    { grupo: 'Histórico', key: 'subtitulo_historico_ver', label: 'Subtítulo ao abrir um painel específico' }
+  ];
+
   const DEFAULTS = {
-    cor_navy: '#002060',
-    cor_vermelho: '#C00000',
-    fonte: 'serif-institucional',
+    cor_navy: '#002060', cor_vermelho: '#C00000',
+    cor_critmax: '#C00000', cor_crit: '#e05252', cor_atencao: '#e9a53a', cor_monitorar: '#9aa7ba',
+    fonte: 'serif-institucional', logo_url: '',
     textos: {
       brand_header: 'Hospital São Marcos — APCC',
       titulo_header: 'Painel de Criticidade de Fornecedores',
-      subtitulo_gerador: 'Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas'
+      login_subtitulo: 'Acesso restrito. Informe a senha para entrar.',
+      login_placeholder_senha: 'Senha de acesso',
+      login_botao: 'Entrar',
+      login_rodape: 'Central de Compras · uso interno',
+      subtitulo_gerador: 'Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas',
+      passo1_titulo: '1 · Base de compras (12 meses)',
+      passo1_texto: 'Export do sistema com o histórico de entradas (.xls ou .xlsx) — colunas <b>dt_entrada, nm_fornecedor, nm_produto, generico, qt_item, vl_item</b>. Carregue uma vez; fica salva neste navegador e só precisa ser atualizada quando você gerar um novo export.',
+      passo2_titulo: '2 · Saldo do dia + consumo 3 meses',
+      passo2_texto: 'Export diário (.xlsx) — colunas <b>nm_produto, nm_produto1, nm_local, sd_estoque, qt_item3meses</b>. Os saldos e consumos de todos os locais são somados por produto.',
+      passo3_titulo: '3 · Fornecedores da pauta (bloqueados)',
+      passo3_texto: 'Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. Se colar direto do Excel/e-mail com uma 2ª coluna trazendo o <b>valor em aberto com o fornecedor</b>, ela também é capturada automaticamente.',
+      passo4_titulo: '4 · Ponto de pedido do dia (opcional)',
+      passo4_texto: 'Relatório diário de Medicamentos e Materiais (.xls) — abas <b>Materiais / Medicamentos / Quimioterápicos</b>. Acrescenta ao painel a <b>quantidade em trânsito</b> e sinaliza itens que já atingiram o ponto de pedido.',
+      regua_titulo: 'Régua de criticidade adotada',
+      regua_desc: 'A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b>',
+      resumo_titulo: 'Resumo por fornecedor',
+      resumo_desc: 'Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.',
+      detalhamento_titulo: 'Detalhamento — itens × fornecedores bloqueados × estoque',
+      detalhamento_rodape: 'Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados. “Em trânsito” e o alerta de ponto de pedido vêm do relatório diário de Medicamentos e Materiais, quando carregado.',
+      subtitulo_historico: 'Histórico de rodadas geradas',
+      historico_titulo: 'Histórico de painéis',
+      historico_desc: 'Rodadas anteriores, mais recente primeiro. Clique para abrir em modo somente leitura.',
+      subtitulo_historico_ver: 'Registro histórico · somente leitura'
     }
   };
+
+  (function montarCamposTexto() {
+    const wrap = $('textFieldsWrap');
+    let grupoAtual = null;
+    TEXT_FIELDS.forEach(f => {
+      if (f.grupo !== grupoAtual) {
+        grupoAtual = f.grupo;
+        const h = document.createElement('p');
+        h.className = 'desc';
+        h.style.cssText = 'font-weight:600; margin-top:16px;';
+        h.textContent = grupoAtual;
+        wrap.appendChild(h);
+      }
+      const label = document.createElement('label');
+      label.className = 'small';
+      label.style.display = 'block';
+      const campo = document.createElement(f.multiline ? 'textarea' : 'input');
+      campo.id = 'txt_' + f.key;
+      campo.dataset.key = f.key;
+      if (!f.multiline) campo.type = 'text';
+      campo.style.width = '100%';
+      if (f.multiline) campo.style.minHeight = '64px';
+      label.textContent = f.label;
+      label.appendChild(document.createElement('br'));
+      label.appendChild(campo);
+      wrap.appendChild(label);
+    });
+  })();
 
   function preencherForm(t) {
     $('corNavy').value = t.cor_navy || DEFAULTS.cor_navy;
     $('corVermelho').value = t.cor_vermelho || DEFAULTS.cor_vermelho;
+    $('corCritmax').value = t.cor_critmax || DEFAULTS.cor_critmax;
+    $('corCrit').value = t.cor_crit || DEFAULTS.cor_crit;
+    $('corAtencao').value = t.cor_atencao || DEFAULTS.cor_atencao;
+    $('corMonitorar').value = t.cor_monitorar || DEFAULTS.cor_monitorar;
     $('selFonte').value = t.fonte || DEFAULTS.fonte;
+    $('txtLogoUrl').value = t.logo_url || '';
+    atualizarPreviewLogo();
     const textos = t.textos || {};
-    $('txtBrand').value = textos.brand_header || DEFAULTS.textos.brand_header;
-    $('txtTitulo').value = textos.titulo_header || DEFAULTS.textos.titulo_header;
-    $('txtSubtitulo').value = textos.subtitulo_gerador || DEFAULTS.textos.subtitulo_gerador;
+    TEXT_FIELDS.forEach(f => {
+      $('txt_' + f.key).value = textos[f.key] || DEFAULTS.textos[f.key] || '';
+    });
+  }
+
+  function atualizarPreviewLogo() {
+    const url = $('txtLogoUrl').value.trim();
+    const img = $('logoPreview');
+    if (url) { img.src = url; img.style.display = ''; } else { img.style.display = 'none'; }
   }
 
   async function carregarTemaAtual() {
@@ -135,17 +244,19 @@
   async function salvarTema() {
     const admin = getAdminSession();
     if (!admin) { location.reload(); return; }
-    const textos = {
-      brand_header: $('txtBrand').value.trim(),
-      titulo_header: $('txtTitulo').value.trim(),
-      subtitulo_gerador: $('txtSubtitulo').value.trim()
-    };
+    const textos = {};
+    TEXT_FIELDS.forEach(f => { textos[f.key] = $('txt_' + f.key).value.trim(); });
     const { error } = await supabaseClient.rpc('rpc_set_theme', {
       p_admin_token: admin.token,
       p_cor_navy: $('corNavy').value,
       p_cor_vermelho: $('corVermelho').value,
       p_fonte: $('selFonte').value,
-      p_textos: textos
+      p_textos: textos,
+      p_logo_url: $('txtLogoUrl').value.trim(),
+      p_cor_critmax: $('corCritmax').value,
+      p_cor_crit: $('corCrit').value,
+      p_cor_atencao: $('corAtencao').value,
+      p_cor_monitorar: $('corMonitorar').value
     });
     if (error) { showAdmToast('Erro ao salvar: ' + error.message, 'err'); return; }
     showAdmToast('Salvo — já aplicado em todo o sistema.', 'ok');
@@ -218,6 +329,7 @@
     }
   });
 
+  $('txtLogoUrl').addEventListener('input', atualizarPreviewLogo);
   $('btnSalvarTema').addEventListener('click', salvarTema);
   $('btnRestaurarTema').addEventListener('click', () => preencherForm(DEFAULTS));
 })();

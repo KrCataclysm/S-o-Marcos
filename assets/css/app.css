@@ -3,6 +3,11 @@
    Reaproveita as variáveis definidas em painel.css.
    ============================================================ */
 
+/* ---------- Logo (opcional, definido no ADM) ---------- */
+.header-brand{display:flex; align-items:center; gap:12px;}
+.header-logo{width:42px; height:42px; object-fit:contain; flex-shrink:0; display:none; background:#fff; border-radius:6px; padding:3px;}
+.login-card .header-logo{width:64px; height:64px; margin:0 auto 12px; padding:4px;}
+
 /* ---------- Navegação institucional ---------- */
 .app-nav{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
 .app-nav a, .app-nav button.link{color:#fff; opacity:.9; text-decoration:none; font-size:12.5px; font-weight:600; padding:6px 12px; border-radius:5px; border:1px solid rgba(255,255,255,.35); background:transparent; transition:background .15s ease, opacity .15s ease;}

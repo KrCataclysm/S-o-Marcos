@@ -15,10 +15,13 @@
 </head>
 <body>
 <header>
-  <div>
-    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
-    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
-    <div class="sub" data-txt="subtitulo_gerador">Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas</div>
+  <div class="header-brand">
+    <img class="header-logo" data-logo alt="Logo">
+    <div>
+      <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+      <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
+      <div class="sub" data-txt="subtitulo_gerador">Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas</div>
+    </div>
   </div>
   <div style="text-align:right;">
     <nav class="app-nav no-print">
@@ -35,28 +38,28 @@
   <!-- ============ ETAPAS ============ -->
   <div class="steps no-print">
     <div class="step">
-      <h2>1 · Base de compras (12 meses)</h2>
-      <p class="hint">Export do sistema com o histórico de entradas (.xls ou .xlsx) — colunas <b>dt_entrada, nm_fornecedor, nm_produto, generico, qt_item, vl_item</b>. Carregue uma vez; fica salva neste navegador e só precisa ser atualizada quando você gerar um novo export.</p>
+      <h2 data-txt="passo1_titulo">1 · Base de compras (12 meses)</h2>
+      <p class="hint" data-txt-html="passo1_texto">Export do sistema com o histórico de entradas (.xls ou .xlsx) — colunas <b>dt_entrada, nm_fornecedor, nm_produto, generico, qt_item, vl_item</b>. Carregue uma vez; fica salva neste navegador e só precisa ser atualizada quando você gerar um novo export.</p>
       <input type="file" id="fileBase" accept=".xls,.xlsx">
       <div class="status" id="stBase"></div>
     </div>
     <div class="step">
-      <h2>2 · Saldo do dia + consumo 3 meses</h2>
-      <p class="hint">Export diário (.xlsx) — colunas <b>nm_produto, nm_produto1, nm_local, sd_estoque, qt_item3meses</b>. Os saldos e consumos de todos os locais são somados por produto.</p>
+      <h2 data-txt="passo2_titulo">2 · Saldo do dia + consumo 3 meses</h2>
+      <p class="hint" data-txt-html="passo2_texto">Export diário (.xlsx) — colunas <b>nm_produto, nm_produto1, nm_local, sd_estoque, qt_item3meses</b>. Os saldos e consumos de todos os locais são somados por produto.</p>
       <input type="file" id="fileSaldo" accept=".xls,.xlsx">
       <div class="status" id="stSaldo"></div>
     </div>
     <div class="step">
-      <h2>3 · Fornecedores da pauta (bloqueados)</h2>
-      <p class="hint">Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. Se colar direto do Excel/e-mail com uma 2ª coluna trazendo o <b>valor em aberto com o fornecedor</b>, ela também é capturada automaticamente.</p>
+      <h2 data-txt="passo3_titulo">3 · Fornecedores da pauta (bloqueados)</h2>
+      <p class="hint" data-txt-html="passo3_texto">Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. Se colar direto do Excel/e-mail com uma 2ª coluna trazendo o <b>valor em aberto com o fornecedor</b>, ela também é capturada automaticamente.</p>
       <textarea id="txtPauta" placeholder="*Oncoexo - Quimioterapias - R$ 82.919,49 - Junior/ Juliana (8093/ 8030)&#10;Fresenius Medical Care Ltda - Hemodiálise - R$ 8.113,00 - Juliana (8030)&#10;..."></textarea>
       <button class="btn-ghost" id="btnLerPauta" style="margin-top:8px;">Identificar fornecedores</button>
       <div class="status" id="stPauta"></div>
       <div class="sup-list" id="supList"></div>
     </div>
     <div class="step" style="border-top-color:#9aa7ba;">
-      <h2>4 · Ponto de pedido do dia <span style="font-size:11px;color:#5c6675;font-weight:400;">(opcional)</span></h2>
-      <p class="hint">Relatório diário de Medicamentos e Materiais (.xls) — abas <b>Materiais / Medicamentos / Quimioterápicos</b>. Acrescenta ao painel a <b>quantidade em trânsito</b> e sinaliza itens que já atingiram o ponto de pedido.</p>
+      <h2 data-txt="passo4_titulo">4 · Ponto de pedido do dia <span style="font-size:11px;color:#5c6675;font-weight:400;">(opcional)</span></h2>
+      <p class="hint" data-txt-html="passo4_texto">Relatório diário de Medicamentos e Materiais (.xls) — abas <b>Materiais / Medicamentos / Quimioterápicos</b>. Acrescenta ao painel a <b>quantidade em trânsito</b> e sinaliza itens que já atingiram o ponto de pedido.</p>
       <input type="file" id="fileRel" accept=".xls,.xlsx">
       <div class="status" id="stRel"></div>
     </div>
@@ -94,8 +97,8 @@
     <div class="cards" id="cards"></div>
 
     <section class="block">
-      <h3>Régua de criticidade adotada</h3>
-      <p class="desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
+      <h3 data-txt="regua_titulo">Régua de criticidade adotada</h3>
+      <p class="desc" data-txt-html="regua_desc">A classificação cruza a <b>cobertura de estoque em dias</b> — calculada pela média de uso (consumo dos últimos 3 meses ÷ 90) — com a existência de <b>fonte alternativa</b> no histórico de compras. Sem segunda fonte, o tempo de reposição (pagamento, cotação e transporte) pode chegar a 45 dias — por isso, a faixa de 15 a 45 dias sem alternativa é tratada como crítica. <b>Clique em uma célula para filtrar o detalhamento.</b></p>
       <table class="regua" id="regua">
         <thead><tr><th>Cobertura ↓ / 2ª fonte →</th><th>SEM 2ª fonte</th><th>COM 2ª fonte</th></tr></thead>
         <tbody>
@@ -117,15 +120,15 @@
     </section>
 
     <section class="block">
-      <h3>Resumo por fornecedor</h3>
-      <p class="desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
+      <h3 data-txt="resumo_titulo">Resumo por fornecedor</h3>
+      <p class="desc" data-txt="resumo_desc">Pior criticidade encontrada entre os itens de cada fornecedor da pauta, na janela de análise selecionada.</p>
       <div class="tbl-wrap" style="max-height:420px;">
         <table id="tblForn"></table>
       </div>
     </section>
 
     <section class="block">
-      <h3>Detalhamento — itens × fornecedores bloqueados × estoque</h3>
+      <h3 data-txt="detalhamento_titulo">Detalhamento — itens × fornecedores bloqueados × estoque</h3>
       <div class="filters no-print">
         <input type="text" id="fBusca" placeholder="Buscar item, fornecedor, comprador…">
         <span class="chip" id="chipTodos">Mostrar todos</span>
@@ -134,7 +137,7 @@
       <div class="tbl-wrap">
         <table id="tblDet"></table>
       </div>
-      <div class="footnote">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados. “Em trânsito” e o alerta de ponto de pedido vêm do relatório diário de Medicamentos e Materiais, quando carregado.</div>
+      <div class="footnote" data-txt="detalhamento_rodape">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados. “Em trânsito” e o alerta de ponto de pedido vêm do relatório diário de Medicamentos e Materiais, quando carregado.</div>
     </section>
 
     <section class="block no-print" id="comentariosBlock" style="display:none;">
