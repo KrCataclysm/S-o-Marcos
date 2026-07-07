@@ -33,6 +33,7 @@ function classifica(dias, ruptura, temFonte) {
 
 function calcKpis(detalhe, resumoForn) {
   const vTotal = resumoForn.reduce((s, r) => s + (r.vPauta || 0), 0);
+  const vAberto = resumoForn.reduce((s, r) => s + (r.valorAberto || 0), 0);
   const nCrit = detalhe.filter(d => CRIT_ORD[d.crit] <= 1).length;
-  return { fornecedores: resumoForn.length, valorTotal: vTotal, itensCriticos: nCrit, itensAnalisados: detalhe.length };
+  return { fornecedores: resumoForn.length, valorTotal: vTotal, valorAberto: vAberto, itensCriticos: nCrit, itensAnalisados: detalhe.length };
 }

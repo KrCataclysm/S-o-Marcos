@@ -17,13 +17,14 @@ function renderPainel() {
   $('pTitulo').textContent = 'Painel de Criticidade — Pauta de Pagamento ' + dtP.toLocaleDateString('pt-BR');
   $('pMeta').textContent = `Gerado em ${new Date().toLocaleDateString('pt-BR')} · janela de análise de ${W} dias · ${resumoForn.length} fornecedores analisados`;
 
-  const { valorTotal: vTotal, itensCriticos: nCrit } = calcKpis(detalhe, resumoForn);
+  const { valorTotal: vTotal, valorAberto: vAberto, itensCriticos: nCrit } = calcKpis(detalhe, resumoForn);
   const cnt = { 'Crítico máximo': 0, 'Crítico': 0, 'Atenção': 0, 'Monitorar': 0 };
   detalhe.forEach(d => cnt[d.crit]++);
 
   $('cards').innerHTML = `
     <div class="kcard"><div class="v">${resumoForn.length}</div><div class="l">Fornecedores na pauta</div></div>
-    <div class="kcard"><div class="v">R$ ${fmtBR(vTotal)}</div><div class="l">Valor total da pauta</div></div>
+    <div class="kcard"><div class="v">R$ ${fmtBR(vTotal)}</div><div class="l">Valor da pauta (a comprar)</div></div>
+    <div class="kcard"><div class="v">R$ ${fmtBR(vAberto)}</div><div class="l">Valor em aberto com fornecedores</div></div>
     <div class="kcard crit"><div class="v">${nCrit}</div><div class="l">Itens em risco crítico / crítico máximo</div></div>
     <div class="kcard"><div class="v">${detalhe.length}</div><div class="l">Itens analisados</div></div>`;
 
@@ -40,10 +41,12 @@ function renderPainel() {
     `<div style="background:${cores[k]};flex:${v}" title="${k}: ${v}">${v}</div>`).join('') +
     '</div><div class="legend">' + Object.entries(cnt).map(([k, v]) => `${k}: <b>${v}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';
 
-  $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Comprador</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens (' + W + 'd)</th><th class="num">Valor comprado ' + W + 'd (R$)</th><th class="num">Valor a comprar (R$)</th></tr></thead><tbody>' +
-    resumoForn.map(r => `<tr><td><b>${r.forn}</b></td><td>${r.comprador || '—'}</td><td>${r.cat || '—'}</td>
+  $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens a comprar (ponto de pedido)</th><th class="num">Valor na pauta (R$)</th><th class="num">Valor em aberto (R$)</th></tr></thead><tbody>' +
+    resumoForn.map(r => `<tr><td><b>${r.forn}</b></td><td>${r.cat || '—'}</td>
       <td><span class="badge ${CRIT_BADGE[r.pior]}">${r.pior}</span></td>
-      <td class="num">${r.nItens}</td><td class="num">${fmtBR(r.vJanela)}</td><td class="num">${r.vPauta != null ? fmtBR(r.vPauta) : '—'}</td></tr>`).join('') + '</tbody>';
+      <td class="num">${r.nPP || 0}</td>
+      <td class="num">${r.vPauta != null ? fmtBR(r.vPauta) : '—'}</td>
+      <td class="num">${r.valorAberto != null ? fmtBR(r.valorAberto) : '—'}</td></tr>`).join('') + '</tbody>';
 
   renderDetalhe();
 }
@@ -59,10 +62,9 @@ function renderDetalhe() {
     return true;
   });
   $('fInfo').textContent = rows.length + ' de ' + RESULT.detalhe.length + ' itens' + (filtroCrit ? ' · filtro: ' + filtroCrit : '');
-  $('tblDet').innerHTML = '<thead><tr><th>Comprador</th><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Qtd</th><th class="num">Valor (R$)</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor a comprar (R$)</th><th>Obs.</th></tr></thead><tbody>' +
+  $('tblDet').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor na pauta (R$)</th><th>Obs.</th></tr></thead><tbody>' +
     rows.map(d => `<tr>
-      <td>${d.comprador || '—'}</td><td><b>${d.forn}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
-      <td class="num">${d.q != null ? fmtInt(d.q) : ''}</td><td class="num">${d.v != null ? fmtBR(d.v) : ''}</td>
+      <td><b>${d.forn}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
       <td class="num">${d.saldo != null ? fmtInt(d.saldo) : '—'}</td>
       <td class="num">${d.diasTxt === 'Ruptura' ? '<b style="color:var(--red)">Ruptura</b>' : d.diasTxt}</td>
       <td class="num">${d.transito != null ? fmtInt(d.transito) : '—'}</td>
@@ -76,7 +78,7 @@ function exportExcel() {
   const { detalhe, resumoForn, dtP, W } = RESULT;
   const cnt = { 'Crítico máximo': 0, 'Crítico': 0, 'Atenção': 0, 'Monitorar': 0 };
   detalhe.forEach(d => cnt[d.crit]++);
-  const { valorTotal: vTotal } = calcKpis(detalhe, resumoForn);
+  const { valorTotal: vTotal, valorAberto: vAberto } = calcKpis(detalhe, resumoForn);
   const wb = XLSX.utils.book_new();
 
   const s1 = [
@@ -84,7 +86,8 @@ function exportExcel() {
     ['Painel de Criticidade — Fornecedores da Pauta de Pagamento ' + dtP.toLocaleDateString('pt-BR') + '  ·  Gerado em ' + new Date().toLocaleDateString('pt-BR')],
     [], ['Indicadores Gerais'],
     ['Fornecedores na pauta', resumoForn.length],
-    ['Valor total da pauta (R$)', +vTotal.toFixed(2)],
+    ['Valor da pauta a comprar (R$)', +vTotal.toFixed(2)],
+    ['Valor em aberto com fornecedores (R$)', +vAberto.toFixed(2)],
     ['Itens em risco Crítico/Crítico máximo', cnt['Crítico máximo'] + cnt['Crítico']],
     ['Itens analisados (janela de ' + W + ' dias)', detalhe.length],
     [], ['Régua de Criticidade Adotada'],
@@ -100,13 +103,13 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws1, 'Resumo Executivo');
 
   const s2 = [['HOSPITAL SÃO MARCOS — APCC  |  Resumo de Criticidade por Fornecedor'],
-  ['Fornecedor', 'Comprador', 'Categoria na Pauta', 'Pior Criticidade', 'Itens Analisados (' + W + 'd)', 'Valor Comprado ' + W + 'd (R$)', 'Valor a Comprar (R$)'],
-  ...resumoForn.map(r => [r.forn, r.comprador || '', r.cat || '', r.pior, r.nItens, +(r.vJanela || 0).toFixed(2), r.vPauta != null ? +r.vPauta.toFixed(2) : ''])];
-  const ws2 = XLSX.utils.aoa_to_sheet(s2); ws2['!cols'] = [{ wch: 34 }, { wch: 20 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 18 }];
+  ['Fornecedor', 'Comprador', 'Categoria na Pauta', 'Pior Criticidade', 'Itens Analisados (' + W + 'd)', 'Itens a Comprar (Ponto de Pedido)', 'Valor Comprado ' + W + 'd (R$)', 'Valor na Pauta (R$)', 'Valor em Aberto (R$)'],
+  ...resumoForn.map(r => [r.forn, r.comprador || '', r.cat || '', r.pior, r.nItens, r.nPP || 0, +(r.vJanela || 0).toFixed(2), r.vPauta != null ? +r.vPauta.toFixed(2) : '', r.valorAberto != null ? +r.valorAberto.toFixed(2) : ''])];
+  const ws2 = XLSX.utils.aoa_to_sheet(s2); ws2['!cols'] = [{ wch: 34 }, { wch: 20 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Resumo por Fornecedor');
 
   const s3 = [['HOSPITAL SÃO MARCOS — APCC  |  Detalhamento — Itens x Fornecedores Bloqueados x Estoque'],
-  ['Comprador', 'Fornecedor', 'Categoria na Pauta', 'Produto Comprado (' + W + 'd)', 'Qtd ' + W + 'd', 'Valor ' + W + 'd (R$)', 'Saldo Estoque', 'Dias de Estoque', 'Em Trânsito', 'Fonte Alternativa', 'Criticidade', 'Valor a Comprar (R$)', 'Observação'],
+  ['Comprador', 'Fornecedor', 'Categoria na Pauta', 'Produto Comprado (' + W + 'd)', 'Qtd ' + W + 'd', 'Valor ' + W + 'd (R$)', 'Saldo Estoque', 'Dias de Estoque', 'Em Trânsito', 'Fonte Alternativa', 'Criticidade', 'Valor na Pauta (R$)', 'Observação'],
   ...detalhe.map(d => [d.comprador || '', d.forn, d.cat || '', d.produto, d.q ?? '', d.v != null ? +d.v.toFixed(2) : '', d.saldo ?? '',
   d.dias != null ? +d.dias.toFixed(1) : d.diasTxt, d.transito ?? '', d.fonte, d.crit, d.vPauta != null ? +d.vPauta.toFixed(2) : '', d.obs || ''])];
   const ws3 = XLSX.utils.aoa_to_sheet(s3);

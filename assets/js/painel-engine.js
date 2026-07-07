@@ -44,6 +44,15 @@ function parsePauta(txt) {
   for (let raw of txt.split(/\r?\n/)) {
     let line = raw.trim();
     if (!line) continue;
+    // Se colado do Excel/e-mail com uma 2ª coluna (separada por TAB), ela é o valor em aberto com o fornecedor.
+    const cols = line.split('\t').map(c => c.trim()).filter(c => c !== '');
+    line = cols[0] || '';
+    let valorAberto = null;
+    if (cols.length > 1) {
+      const cv = cols[cols.length - 1];
+      const mv = cv.match(/R\$\s*([\d.\s]+,\d{1,2}|[\d.]+)/i);
+      valorAberto = mv ? parseNum(mv[1]) : parseNum(cv);
+    }
     line = line.replace(/^\*+\s*/, '');
     if (!line.includes(' - ')) continue;
     if (/^(bom dia|boa tarde|prezad|lista de|segue|obs)/i.test(line)) continue;
@@ -61,7 +70,7 @@ function parsePauta(txt) {
       others.push(p.trim());
     }
     categoria = others.join(' - ');
-    out.push({ nome, categoria, valor, comprador, matches: [], incluir: true });
+    out.push({ nome, categoria, valor, valorAberto, comprador, matches: [], incluir: true });
   }
   return out;
 }
@@ -143,7 +152,7 @@ function gerarPainel() {
       const o = agg.get(k); o.q += r.q; o.v += r.v; vJanela += r.v;
       if (!o.generico && r.g) o.generico = r.g;
     }
-    let pior = 'Monitorar', itens = [...agg.values()];
+    let pior = 'Monitorar', itens = [...agg.values()], nPP = 0;
     if (!itens.length) {
       const cr = p.matches.length ? 'Atenção' : 'Atenção';
       detalhe.push({ comprador: p.comprador, forn: p.nome, cat: p.categoria, produto: '— sem histórico de compra na janela —', q: null, v: null, saldo: null, dias: null, diasTxt: 'Sem informação', fonte: 'Sem informação', fonteBloq: false, crit: cr, vPauta: p.valor, obs: p.matches.length ? `Sem compras nos últimos ${W} dias.` : 'Fornecedor não localizado na base — verificar nome no sistema.' });
@@ -166,6 +175,7 @@ function gerarPainel() {
         const crit = classifica(dias, ruptura, temFonte);
         if (CRIT_ORD[crit] < CRIT_ORD[pior]) pior = crit;
         const rel = RELMAP ? (RELMAP.get(norm(it.produto)) || (it.generico ? RELMAP.get(norm(it.generico)) : null)) : null;
+        if (rel) nPP++;
         let obs = (s ? '' : 'Item não localizado no saldo do dia.') + (viaGen ? ' Saldo apurado pelo genérico.' : '');
         if (rel) obs = ('⚠ No ponto de pedido do dia (' + rel.aba + '). ' + obs).trim();
         detalhe.push({
@@ -176,7 +186,7 @@ function gerarPainel() {
         });
       }
     }
-    resumoForn.push({ forn: p.nome, comprador: p.comprador, cat: p.categoria, pior, nItens: itens.length, vJanela, vPauta: p.valor });
+    resumoForn.push({ forn: p.nome, comprador: p.comprador, cat: p.categoria, pior, nItens: itens.length, nPP, vJanela, vPauta: p.valor, valorAberto: p.valorAberto });
   }
 
   detalhe.sort((a, b) => CRIT_ORD[a.crit] - CRIT_ORD[b.crit] || (b.v || 0) - (a.v || 0));
