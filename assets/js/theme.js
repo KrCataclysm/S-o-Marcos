@@ -35,6 +35,27 @@ const darken = (hex, amt) => mixHex(hex, '#000000', amt);
 
 window.__HSM_TEXT_OVERRIDES = {};
 
+function relLuminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map(v => {
+    v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function applySevColor(varName, hex) {
+  if (!hex) return;
+  const root = document.documentElement;
+  root.style.setProperty(varName, hex);
+  root.style.setProperty(varName + '-bg', lighten(hex, 0.88));
+  root.style.setProperty(varName + '-text', darken(hex, 0.35));
+  root.style.setProperty(varName + '-on', relLuminance(hex) > 0.5 ? '#22262e' : '#ffffff');
+}
+
+function applyLogo(url) {
+  if (!url) return;
+  document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(l => { l.href = url; });
+  document.querySelectorAll('img[data-logo]').forEach(img => { img.src = url; img.style.display = ''; });
+}
+
 async function applyTheme() {
   try {
     const { data, error } = await supabaseClient.rpc('rpc_get_theme');
@@ -50,14 +71,29 @@ async function applyTheme() {
       root.style.setProperty('--red', t.cor_vermelho);
       root.style.setProperty('--red-bg', lighten(t.cor_vermelho, 0.92));
     }
+    applySevColor('--sev-critmax', t.cor_critmax);
+    applySevColor('--sev-crit', t.cor_crit);
+    applySevColor('--sev-atencao', t.cor_atencao);
+    applySevColor('--sev-monitorar', t.cor_monitorar);
+
     const fonts = THEME_FONT_PRESETS[t.fonte] || THEME_FONT_PRESETS['serif-institucional'];
     root.style.setProperty('--serif', fonts.serif);
     root.style.setProperty('--sans', fonts.sans);
+
+    applyLogo(t.logo_url);
 
     window.__HSM_TEXT_OVERRIDES = t.textos || {};
     document.querySelectorAll('[data-txt]').forEach(el => {
       const key = el.dataset.txt;
       if (window.__HSM_TEXT_OVERRIDES[key]) el.textContent = window.__HSM_TEXT_OVERRIDES[key];
+    });
+    document.querySelectorAll('[data-txt-html]').forEach(el => {
+      const key = el.dataset.txtHtml;
+      if (window.__HSM_TEXT_OVERRIDES[key]) el.innerHTML = window.__HSM_TEXT_OVERRIDES[key];
+    });
+    document.querySelectorAll('[data-txt-placeholder]').forEach(el => {
+      const key = el.dataset.txtPlaceholder;
+      if (window.__HSM_TEXT_OVERRIDES[key]) el.placeholder = window.__HSM_TEXT_OVERRIDES[key];
     });
   } catch (e) { /* mantém o visual padrão */ }
 }

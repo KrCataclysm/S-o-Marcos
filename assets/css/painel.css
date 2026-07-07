@@ -6,6 +6,10 @@
 :root{
   --navy:#002060; --navy-2:#0a3a8c; --red:#C00000; --red-bg:#fbe9e9;
   --amber:#9a5b00; --amber-bg:#fdf3e0; --gray:#5b6472; --gray-bg:#eef1f5;
+  --sev-critmax:#C00000; --sev-critmax-bg:#fbe9e9; --sev-critmax-text:#C00000; --sev-critmax-on:#ffffff;
+  --sev-crit:#e05252; --sev-crit-bg:#fdeaea; --sev-crit-text:#a11212; --sev-crit-on:#ffffff;
+  --sev-atencao:#e9a53a; --sev-atencao-bg:#fdf3e0; --sev-atencao-text:#9a5b00; --sev-atencao-on:#3d2900;
+  --sev-monitorar:#9aa7ba; --sev-monitorar-bg:#eef1f5; --sev-monitorar-text:#5b6472; --sev-monitorar-on:#333d4d;
   --paper:#f4f6f9; --card:#ffffff; --line:#d8dee8; --ink:#1c2430;
   --serif:'Times New Roman', Georgia, serif;
   --sans:'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
@@ -101,16 +105,16 @@ th.num{text-align:right;}
 .regua td .cnt{display:block; font-weight:400; font-size:11px; color:#444; margin-top:2px;}
 .regua-note{font-size:11.5px; color:#5c6675; margin-top:8px; max-width:760px;}
 
-.c-critmax{background:var(--red-bg); color:var(--red);}
-.c-crit{background:#fdeaea; color:#a11212;}
-.c-atencao{background:var(--amber-bg); color:var(--amber);}
-.c-monitorar{background:var(--gray-bg); color:var(--gray);}
+.c-critmax{background:var(--sev-critmax-bg); color:var(--sev-critmax-text);}
+.c-crit{background:var(--sev-crit-bg); color:var(--sev-crit-text);}
+.c-atencao{background:var(--sev-atencao-bg); color:var(--sev-atencao-text);}
+.c-monitorar{background:var(--sev-monitorar-bg); color:var(--sev-monitorar-text);}
 
 .badge{display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; white-space:nowrap;}
-.b-critmax{background:var(--red); color:#fff;}
-.b-crit{background:#e05252; color:#fff;}
-.b-atencao{background:#e9a53a; color:#3d2900;}
-.b-monitorar{background:#c7cfda; color:#333d4d;}
+.b-critmax{background:var(--sev-critmax); color:var(--sev-critmax-on);}
+.b-crit{background:var(--sev-crit); color:var(--sev-crit-on);}
+.b-atencao{background:var(--sev-atencao); color:var(--sev-atencao-on);}
+.b-monitorar{background:var(--sev-monitorar); color:var(--sev-monitorar-on);}
 .b-block{background:var(--red-bg); color:var(--red); border:1px solid #eec3c3;}
 
 .distrib{display:flex; gap:0; height:26px; border-radius:5px; overflow:hidden; max-width:760px; margin:8px 0 4px; border:1px solid var(--line);}

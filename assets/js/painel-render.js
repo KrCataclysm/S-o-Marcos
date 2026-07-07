@@ -36,9 +36,10 @@ function renderPainel() {
   document.querySelectorAll('#regua .cell').forEach(c => { if (!(c.dataset.f in firstCell)) firstCell[c.dataset.f] = c; });
   Object.entries(cnt).forEach(([k, v]) => { if (firstCell[k]) firstCell[k].querySelector('.cnt').textContent = v + ' itens'; });
 
-  const cores = { 'Crítico máximo': '#C00000', 'Crítico': '#e05252', 'Atenção': '#e9a53a', 'Monitorar': '#9aa7ba' };
+  const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const sevVar = k => '--sev-' + CRIT_BADGE[k].slice(2);
   $('distrib').innerHTML = '<div class="distrib">' + Object.entries(cnt).filter(([, v]) => v > 0).map(([k, v]) =>
-    `<div style="background:${cores[k]};flex:${v}" title="${k}: ${v}">${v}</div>`).join('') +
+    `<div style="background:${cssVar(sevVar(k))};color:${cssVar(sevVar(k) + '-on')};flex:${v}" title="${k}: ${v}">${v}</div>`).join('') +
     '</div><div class="legend">' + Object.entries(cnt).map(([k, v]) => `${k}: <b>${v}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';
 
   $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens a comprar (ponto de pedido)</th><th class="num">Valor na pauta (R$)</th><th class="num">Valor em aberto (R$)</th></tr></thead><tbody>' +
