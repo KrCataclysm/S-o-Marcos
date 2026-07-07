@@ -16,14 +16,15 @@
 <body>
 <header>
   <div>
-    <div class="brand">Hospital São Marcos — APCC</div>
-    <h1>Painel de Criticidade de Fornecedores</h1>
-    <div class="sub">Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas</div>
+    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
+    <div class="sub" data-txt="subtitulo_gerador">Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas</div>
   </div>
   <div style="text-align:right;">
     <nav class="app-nav no-print">
       <a href="gerador.html" class="active">Gerar painel</a>
       <a href="historico.html">Histórico</a>
+      <a href="adm.html">ADM</a>
       <button type="button" class="link" id="btnSair">Sair</button>
     </nav>
     <div class="sub" id="hoje" style="margin-top:6px;"></div>
@@ -135,15 +136,27 @@
       </div>
       <div class="footnote">Dias de estoque = saldo atual ÷ (consumo de 3 meses ÷ 90). Itens sem consumo registrado no período aparecem como “Sem informação”. A 2ª fonte considera outros fornecedores que venderam o mesmo genérico dentro da base de compras carregada; fornecedores da própria pauta aparecem marcados como bloqueados. “Em trânsito” e o alerta de ponto de pedido vêm do relatório diário de Medicamentos e Materiais, quando carregado.</div>
     </section>
+
+    <section class="block no-print" id="comentariosBlock" style="display:none;">
+      <h3>Comentários</h3>
+      <p class="desc">Recados sobre essa rodada. Use o formato "Nome - Comentário".</p>
+      <div id="listaComentarios" class="comentarios-lista"></div>
+      <div class="comentario-form">
+        <input type="text" id="txtComentario" placeholder="Nome - Comentário">
+        <button class="btn-ghost" id="btnEnviarComentario">Enviar</button>
+      </div>
+    </section>
   </div>
 </main>
 
 <script src="assets/js/pwa-register.js"></script>
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/theme.js"></script>
 <script src="assets/js/painel-common.js"></script>
 <script src="assets/js/painel-render.js"></script>
 <script src="assets/js/painel-engine.js"></script>
+<script src="assets/js/comentarios.js"></script>
 <script>
 (function init(){
   if (!requireAuth()) return;
@@ -163,11 +176,12 @@
     const result = gerarPainel();
     showPainel(result);
     $('saveToast').className = 'save-toast';
+    $('comentariosBlock').style.display = 'none';
 
     const kpis = calcKpis(result.detalhe, result.resumoForn);
     const dataPauta = result.dtP.toISOString().slice(0, 10);
     showToast('Salvando no histórico…', 'warn');
-    const { error } = await callAuthed('rpc_save_painel', {
+    const { data: novoId, error } = await callAuthed('rpc_save_painel', {
       p_data_pauta: dataPauta,
       p_janela_analise: result.W,
       p_gerado_por: $('txtGeradoPor').value.trim(),
@@ -179,6 +193,8 @@
       showToast('Painel gerado, mas não foi possível salvar no histórico: ' + error.message, 'err');
     } else {
       showToast('Painel salvo no histórico.', 'ok');
+      $('comentariosBlock').style.display = 'block';
+      initComentarios(novoId);
     }
   });
 })();

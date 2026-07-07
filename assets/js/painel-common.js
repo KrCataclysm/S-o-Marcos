@@ -19,6 +19,7 @@ const parseNum = v => {
   return isNaN(n) ? null : n;
 };
 const escRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeHtml = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const CRIT_ORD = { 'Crítico máximo': 0, 'Crítico': 1, 'Atenção': 2, 'Monitorar': 3 };
 const CRIT_BADGE = { 'Crítico máximo': 'b-critmax', 'Crítico': 'b-crit', 'Atenção': 'b-atencao', 'Monitorar': 'b-monitorar' };

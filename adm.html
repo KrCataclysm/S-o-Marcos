@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADM — Painel de Criticidade de Fornecedores (HSM)</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#002060">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/painel.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
+    <div class="sub">Administração · aparência do sistema</div>
+  </div>
+  <nav class="app-nav no-print">
+    <a href="gerador.html">Gerar painel</a>
+    <a href="historico.html">Histórico</a>
+    <a href="adm.html" class="active">ADM</a>
+    <button type="button" class="link" id="btnSair">Sair</button>
+  </nav>
+</header>
+
+<main>
+  <div id="admGate">
+    <div class="login-card" style="margin:40px auto;">
+      <div class="brand">Área restrita</div>
+      <h1 style="font-size:19px;">Senha de administrador</h1>
+      <p class="sub">Separada da senha de acesso ao sistema.</p>
+      <form id="frmAdmLogin" autocomplete="off">
+        <input type="password" id="txtSenhaAdm" placeholder="Senha de admin" autofocus required>
+        <button type="submit" class="btn-primary" id="btnEntrarAdm">Entrar</button>
+      </form>
+      <div class="msg" id="admMsg"></div>
+    </div>
+  </div>
+
+  <div id="admPainel" style="display:none;">
+    <section class="block">
+      <h3>Cores</h3>
+      <p class="desc">Aplicadas em todo o sistema, na hora que salvar.</p>
+      <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:center;">
+        <label class="small">Navy (principal)<br><input type="color" id="corNavy"></label>
+        <label class="small">Vermelho (crítico)<br><input type="color" id="corVermelho"></label>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Fonte</h3>
+      <p class="desc">Aplicada em todo o sistema.</p>
+      <select id="selFonte" style="width:100%; max-width:360px;">
+        <option value="serif-institucional">Serifada institucional (atual)</option>
+        <option value="sans-moderna">Sans-serif moderna</option>
+        <option value="serif-classica">Serif clássica</option>
+        <option value="sans-arredondada">Sans-serif arredondada</option>
+      </select>
+    </section>
+
+    <section class="block">
+      <h3>Textos</h3>
+      <p class="desc">Textos principais que aparecem no topo de todas as telas.</p>
+      <label class="small">Linha da marca (acima do título)<br>
+        <input type="text" id="txtBrand" style="width:100%;">
+      </label>
+      <label class="small">Título principal<br>
+        <input type="text" id="txtTitulo" style="width:100%;">
+      </label>
+      <label class="small">Subtítulo (só na tela de gerar painel)<br>
+        <input type="text" id="txtSubtitulo" style="width:100%;">
+      </label>
+    </section>
+
+    <div class="toolbar-generate no-print">
+      <button class="btn-primary" id="btnSalvarTema">Salvar alterações</button>
+      <button class="btn-ghost" id="btnRestaurarTema">Restaurar padrão (sem salvar)</button>
+    </div>
+    <div class="save-toast" id="admToast"></div>
+
+    <section class="block">
+      <h3>Comentários de todos os painéis</h3>
+      <p class="desc">Editar ou apagar qualquer comentário, de qualquer rodada.</p>
+      <div id="listaComentariosAdm" class="comentarios-lista"></div>
+    </section>
+  </div>
+</main>
+
+<script src="assets/js/pwa-register.js"></script>
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/painel-common.js"></script>
+<script>
+(function init(){
+  if (!requireAuth()) return;
+  $('btnSair').addEventListener('click', logout);
+
+  const DEFAULTS = {
+    cor_navy: '#002060',
+    cor_vermelho: '#C00000',
+    fonte: 'serif-institucional',
+    textos: {
+      brand_header: 'Hospital São Marcos — APCC',
+      titulo_header: 'Painel de Criticidade de Fornecedores',
+      subtitulo_gerador: 'Central de Compras · cruzamento pauta de pagamento × estoque × fontes alternativas'
+    }
+  };
+
+  function preencherForm(t) {
+    $('corNavy').value = t.cor_navy || DEFAULTS.cor_navy;
+    $('corVermelho').value = t.cor_vermelho || DEFAULTS.cor_vermelho;
+    $('selFonte').value = t.fonte || DEFAULTS.fonte;
+    const textos = t.textos || {};
+    $('txtBrand').value = textos.brand_header || DEFAULTS.textos.brand_header;
+    $('txtTitulo').value = textos.titulo_header || DEFAULTS.textos.titulo_header;
+    $('txtSubtitulo').value = textos.subtitulo_gerador || DEFAULTS.textos.subtitulo_gerador;
+  }
+
+  async function carregarTemaAtual() {
+    const { data } = await supabaseClient.rpc('rpc_get_theme');
+    preencherForm((data && data[0]) || DEFAULTS);
+  }
+
+  function showAdmToast(msg, cls) {
+    const el = $('admToast');
+    el.textContent = msg;
+    el.className = 'save-toast show ' + cls;
+  }
+
+  async function salvarTema() {
+    const admin = getAdminSession();
+    if (!admin) { location.reload(); return; }
+    const textos = {
+      brand_header: $('txtBrand').value.trim(),
+      titulo_header: $('txtTitulo').value.trim(),
+      subtitulo_gerador: $('txtSubtitulo').value.trim()
+    };
+    const { error } = await supabaseClient.rpc('rpc_set_theme', {
+      p_admin_token: admin.token,
+      p_cor_navy: $('corNavy').value,
+      p_cor_vermelho: $('corVermelho').value,
+      p_fonte: $('selFonte').value,
+      p_textos: textos
+    });
+    if (error) { showAdmToast('Erro ao salvar: ' + error.message, 'err'); return; }
+    showAdmToast('Salvo — já aplicado em todo o sistema.', 'ok');
+    applyTheme();
+  }
+
+  function mostrarPainelAdm() {
+    $('admGate').style.display = 'none';
+    $('admPainel').style.display = 'block';
+    carregarTemaAtual();
+    carregarComentariosAdm();
+  }
+
+  async function carregarComentariosAdm() {
+    const admin = getAdminSession();
+    const lista = $('listaComentariosAdm');
+    if (!admin) return;
+    const { data, error } = await supabaseClient.rpc('rpc_admin_list_comentarios', { p_admin_token: admin.token });
+    if (error) { lista.innerHTML = '<p class="hist-error">Não foi possível carregar os comentários.</p>'; return; }
+    if (!data || !data.length) { lista.innerHTML = '<p class="footnote">Nenhum comentário em nenhum painel ainda.</p>'; return; }
+    lista.innerHTML = data.map(c => {
+      const dt = new Date(c.data_pauta + 'T12:00:00').toLocaleDateString('pt-BR');
+      return `<div class="comentario-item" data-id="${c.id}">
+        <div class="comentario-texto" contenteditable="true">${escapeHtml(c.texto)}</div>
+        <div class="comentario-data">Pauta ${dt} · ${new Date(c.criado_em).toLocaleString('pt-BR')}</div>
+        <div style="margin-top:6px; display:flex; gap:8px;">
+          <button class="btn-ghost btn-salvar-comentario" style="padding:4px 10px; font-size:11.5px;">Salvar edição</button>
+          <button class="btn-ghost btn-apagar-comentario" style="padding:4px 10px; font-size:11.5px; color:var(--red); border-color:var(--red);">Apagar</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    lista.querySelectorAll('.btn-salvar-comentario').forEach(btn => btn.addEventListener('click', async (e) => {
+      const item = e.target.closest('.comentario-item');
+      const texto = item.querySelector('.comentario-texto').textContent.trim();
+      const { error } = await supabaseClient.rpc('rpc_admin_edit_comentario', {
+        p_admin_token: getAdminSession().token, p_comentario_id: item.dataset.id, p_texto: texto
+      });
+      showAdmToast(error ? 'Erro ao salvar comentário: ' + error.message : 'Comentário atualizado.', error ? 'err' : 'ok');
+      if (!error) carregarComentariosAdm();
+    }));
+    lista.querySelectorAll('.btn-apagar-comentario').forEach(btn => btn.addEventListener('click', async (e) => {
+      const item = e.target.closest('.comentario-item');
+      const { error } = await supabaseClient.rpc('rpc_admin_delete_comentario', {
+        p_admin_token: getAdminSession().token, p_comentario_id: item.dataset.id
+      });
+      showAdmToast(error ? 'Erro ao apagar: ' + error.message : 'Comentário apagado.', error ? 'err' : 'ok');
+      if (!error) carregarComentariosAdm();
+    }));
+  }
+
+  if (getAdminSession()) mostrarPainelAdm();
+
+  $('frmAdmLogin').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const senha = $('txtSenhaAdm').value;
+    const btn = $('btnEntrarAdm'), msg = $('admMsg');
+    btn.disabled = true; btn.textContent = 'Verificando…';
+    msg.textContent = ''; msg.className = 'msg';
+    try {
+      const { data, error } = await supabaseClient.rpc('rpc_admin_login', { p_password: senha });
+      if (error || !data || !data.length) throw new Error();
+      setAdminSession(data[0].token, data[0].expires_at);
+      mostrarPainelAdm();
+    } catch (err) {
+      msg.className = 'msg err'; msg.textContent = 'Senha de admin incorreta.';
+      $('txtSenhaAdm').value = ''; $('txtSenhaAdm').focus();
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+  });
+
+  $('btnSalvarTema').addEventListener('click', salvarTema);
+  $('btnRestaurarTema').addEventListener('click', () => preencherForm(DEFAULTS));
+})();
+</script>
+</body>
+</html>

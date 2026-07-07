@@ -44,5 +44,13 @@
 .save-toast.err{background:var(--red-bg); color:var(--red); border:1px solid #eec3c3;}
 .save-toast.warn{background:var(--amber-bg); color:var(--amber); border:1px solid #ecd6ad;}
 
+/* ---------- Comentários ---------- */
+.comentarios-lista{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+.comentario-item{background:var(--gray-bg); border-radius:6px; padding:8px 12px; font-size:12.5px;}
+.comentario-item .comentario-texto{color:var(--ink);}
+.comentario-item .comentario-data{color:#5c6675; font-size:11px; margin-top:2px;}
+.comentario-form{display:flex; gap:8px; flex-wrap:wrap;}
+.comentario-form input[type=text]{flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; font-size:13px;}
+
 .no-print{}
 @media print{ .app-nav, .save-toast, .hist-toolbar, .readonly-banner{display:none !important;} }

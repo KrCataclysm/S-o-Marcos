@@ -15,8 +15,8 @@
 <body>
 <div class="login-wrap">
   <div class="login-card">
-    <div class="brand">Hospital São Marcos — APCC</div>
-    <h1>Painel de Criticidade de Fornecedores</h1>
+    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
     <p class="sub">Acesso restrito. Informe a senha para entrar.</p>
     <form id="frmLogin" autocomplete="off">
       <input type="password" id="txtSenha" placeholder="Senha de acesso" autofocus required>
@@ -30,6 +30,7 @@
 <script src="assets/js/pwa-register.js"></script>
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/theme.js"></script>
 <script src="assets/js/painel-common.js"></script>
 <script>
 (function initLogin(){

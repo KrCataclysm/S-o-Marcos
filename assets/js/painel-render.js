@@ -40,7 +40,7 @@ function renderPainel() {
     `<div style="background:${cores[k]};flex:${v}" title="${k}: ${v}">${v}</div>`).join('') +
     '</div><div class="legend">' + Object.entries(cnt).map(([k, v]) => `${k}: <b>${v}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';
 
-  $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Comprador</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens (' + W + 'd)</th><th class="num">Valor comprado ' + W + 'd (R$)</th><th class="num">Valor na pauta (R$)</th></tr></thead><tbody>' +
+  $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Comprador</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens (' + W + 'd)</th><th class="num">Valor comprado ' + W + 'd (R$)</th><th class="num">Valor a comprar (R$)</th></tr></thead><tbody>' +
     resumoForn.map(r => `<tr><td><b>${r.forn}</b></td><td>${r.comprador || '—'}</td><td>${r.cat || '—'}</td>
       <td><span class="badge ${CRIT_BADGE[r.pior]}">${r.pior}</span></td>
       <td class="num">${r.nItens}</td><td class="num">${fmtBR(r.vJanela)}</td><td class="num">${r.vPauta != null ? fmtBR(r.vPauta) : '—'}</td></tr>`).join('') + '</tbody>';
@@ -59,7 +59,7 @@ function renderDetalhe() {
     return true;
   });
   $('fInfo').textContent = rows.length + ' de ' + RESULT.detalhe.length + ' itens' + (filtroCrit ? ' · filtro: ' + filtroCrit : '');
-  $('tblDet').innerHTML = '<thead><tr><th>Comprador</th><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Qtd</th><th class="num">Valor (R$)</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor na pauta (R$)</th><th>Obs.</th></tr></thead><tbody>' +
+  $('tblDet').innerHTML = '<thead><tr><th>Comprador</th><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Qtd</th><th class="num">Valor (R$)</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor a comprar (R$)</th><th>Obs.</th></tr></thead><tbody>' +
     rows.map(d => `<tr>
       <td>${d.comprador || '—'}</td><td><b>${d.forn}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
       <td class="num">${d.q != null ? fmtInt(d.q) : ''}</td><td class="num">${d.v != null ? fmtBR(d.v) : ''}</td>
@@ -100,13 +100,13 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws1, 'Resumo Executivo');
 
   const s2 = [['HOSPITAL SÃO MARCOS — APCC  |  Resumo de Criticidade por Fornecedor'],
-  ['Fornecedor', 'Comprador', 'Categoria na Pauta', 'Pior Criticidade', 'Itens Analisados (' + W + 'd)', 'Valor Comprado ' + W + 'd (R$)', 'Valor na Pauta (R$)'],
+  ['Fornecedor', 'Comprador', 'Categoria na Pauta', 'Pior Criticidade', 'Itens Analisados (' + W + 'd)', 'Valor Comprado ' + W + 'd (R$)', 'Valor a Comprar (R$)'],
   ...resumoForn.map(r => [r.forn, r.comprador || '', r.cat || '', r.pior, r.nItens, +(r.vJanela || 0).toFixed(2), r.vPauta != null ? +r.vPauta.toFixed(2) : ''])];
   const ws2 = XLSX.utils.aoa_to_sheet(s2); ws2['!cols'] = [{ wch: 34 }, { wch: 20 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Resumo por Fornecedor');
 
   const s3 = [['HOSPITAL SÃO MARCOS — APCC  |  Detalhamento — Itens x Fornecedores Bloqueados x Estoque'],
-  ['Comprador', 'Fornecedor', 'Categoria na Pauta', 'Produto Comprado (' + W + 'd)', 'Qtd ' + W + 'd', 'Valor ' + W + 'd (R$)', 'Saldo Estoque', 'Dias de Estoque', 'Em Trânsito', 'Fonte Alternativa', 'Criticidade', 'Valor na Pauta (R$)', 'Observação'],
+  ['Comprador', 'Fornecedor', 'Categoria na Pauta', 'Produto Comprado (' + W + 'd)', 'Qtd ' + W + 'd', 'Valor ' + W + 'd (R$)', 'Saldo Estoque', 'Dias de Estoque', 'Em Trânsito', 'Fonte Alternativa', 'Criticidade', 'Valor a Comprar (R$)', 'Observação'],
   ...detalhe.map(d => [d.comprador || '', d.forn, d.cat || '', d.produto, d.q ?? '', d.v != null ? +d.v.toFixed(2) : '', d.saldo ?? '',
   d.dias != null ? +d.dias.toFixed(1) : d.diasTxt, d.transito ?? '', d.fonte, d.crit, d.vPauta != null ? +d.vPauta.toFixed(2) : '', d.obs || ''])];
   const ws3 = XLSX.utils.aoa_to_sheet(s3);

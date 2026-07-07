@@ -15,13 +15,14 @@
 <body>
 <header>
   <div>
-    <div class="brand">Hospital São Marcos — APCC</div>
-    <h1>Painel de Criticidade de Fornecedores</h1>
+    <div class="brand" data-txt="brand_header">Hospital São Marcos — APCC</div>
+    <h1 data-txt="titulo_header">Painel de Criticidade de Fornecedores</h1>
     <div class="sub">Histórico de rodadas geradas</div>
   </div>
   <nav class="app-nav no-print">
     <a href="gerador.html">Gerar painel</a>
     <a href="historico.html" class="active">Histórico</a>
+    <a href="adm.html">ADM</a>
     <button type="button" class="link" id="btnSair">Sair</button>
   </nav>
 </header>
@@ -40,6 +41,7 @@
 <script src="assets/js/pwa-register.js"></script>
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/theme.js"></script>
 <script src="assets/js/painel-common.js"></script>
 <script>
 (function init(){
