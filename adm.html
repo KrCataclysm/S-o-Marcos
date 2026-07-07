@@ -81,6 +81,12 @@
       <button class="btn-ghost" id="btnRestaurarTema">Restaurar padrão (sem salvar)</button>
     </div>
     <div class="save-toast" id="admToast"></div>
+
+    <section class="block">
+      <h3>Comentários de todos os painéis</h3>
+      <p class="desc">Editar ou apagar qualquer comentário, de qualquer rodada.</p>
+      <div id="listaComentariosAdm" class="comentarios-lista"></div>
+    </section>
   </div>
 </main>
 
@@ -150,6 +156,45 @@
     $('admGate').style.display = 'none';
     $('admPainel').style.display = 'block';
     carregarTemaAtual();
+    carregarComentariosAdm();
+  }
+
+  async function carregarComentariosAdm() {
+    const admin = getAdminSession();
+    const lista = $('listaComentariosAdm');
+    if (!admin) return;
+    const { data, error } = await supabaseClient.rpc('rpc_admin_list_comentarios', { p_admin_token: admin.token });
+    if (error) { lista.innerHTML = '<p class="hist-error">Não foi possível carregar os comentários.</p>'; return; }
+    if (!data || !data.length) { lista.innerHTML = '<p class="footnote">Nenhum comentário em nenhum painel ainda.</p>'; return; }
+    lista.innerHTML = data.map(c => {
+      const dt = new Date(c.data_pauta + 'T12:00:00').toLocaleDateString('pt-BR');
+      return `<div class="comentario-item" data-id="${c.id}">
+        <div class="comentario-texto" contenteditable="true">${escapeHtml(c.texto)}</div>
+        <div class="comentario-data">Pauta ${dt} · ${new Date(c.criado_em).toLocaleString('pt-BR')}</div>
+        <div style="margin-top:6px; display:flex; gap:8px;">
+          <button class="btn-ghost btn-salvar-comentario" style="padding:4px 10px; font-size:11.5px;">Salvar edição</button>
+          <button class="btn-ghost btn-apagar-comentario" style="padding:4px 10px; font-size:11.5px; color:var(--red); border-color:var(--red);">Apagar</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    lista.querySelectorAll('.btn-salvar-comentario').forEach(btn => btn.addEventListener('click', async (e) => {
+      const item = e.target.closest('.comentario-item');
+      const texto = item.querySelector('.comentario-texto').textContent.trim();
+      const { error } = await supabaseClient.rpc('rpc_admin_edit_comentario', {
+        p_admin_token: getAdminSession().token, p_comentario_id: item.dataset.id, p_texto: texto
+      });
+      showAdmToast(error ? 'Erro ao salvar comentário: ' + error.message : 'Comentário atualizado.', error ? 'err' : 'ok');
+      if (!error) carregarComentariosAdm();
+    }));
+    lista.querySelectorAll('.btn-apagar-comentario').forEach(btn => btn.addEventListener('click', async (e) => {
+      const item = e.target.closest('.comentario-item');
+      const { error } = await supabaseClient.rpc('rpc_admin_delete_comentario', {
+        p_admin_token: getAdminSession().token, p_comentario_id: item.dataset.id
+      });
+      showAdmToast(error ? 'Erro ao apagar: ' + error.message : 'Comentário apagado.', error ? 'err' : 'ok');
+      if (!error) carregarComentariosAdm();
+    }));
   }
 
   if (getAdminSession()) mostrarPainelAdm();
