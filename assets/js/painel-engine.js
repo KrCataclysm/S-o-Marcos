@@ -264,7 +264,12 @@ function initGeradorInteractions() {
         const cP = col('nm_produto'), cS = col('sd_hosp'), cD = col('cons_diario'), cE = col('dias_em_estoque'), cT = col('em_transito');
         for (let i = hi + 1; i < rows.length; i++) {
           const r = rows[i]; if (!r || !r[cP]) continue;
-          RELMAP.set(norm(r[cP]), { aba: nome, sdHosp: parseNum(r[cS]), consDiario: parseNum(r[cD]), dias: parseNum(r[cE]), transito: parseNum(r[cT]) || 0 });
+          const k = norm(r[cP]);
+          // Algumas exportações repetem o mesmo produto em mais de uma aba (ex.: item de
+          // "Medicamentos" duplicado em "Quimioterápicos"). Mantém a primeira aba encontrada
+          // em vez de deixar a última sobrescrever o rótulo mostrado no painel.
+          if (RELMAP.has(k)) continue;
+          RELMAP.set(k, { aba: nome, sdHosp: parseNum(r[cS]), consDiario: parseNum(r[cD]), dias: parseNum(r[cE]), transito: parseNum(r[cT]) || 0 });
           n++;
         }
       }
