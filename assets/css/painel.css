@@ -136,3 +136,20 @@ th.num{text-align:right;}
   th{position:static;}
   #painel{display:block !important;}
 }
+
+/* ---------- Bloqueio de paisagem no celular ----------
+   Independe do "orientation" do manifest (que só vale pra PWA instalada,
+   e fica preso no manifest de quando o app foi adicionado à tela inicial).
+   Isso aqui é só CSS, funciona sempre: instalado ou não, Android ou iOS. */
+.rotate-overlay{
+  display:none;
+  position:fixed; inset:0; z-index:9999;
+  background:var(--navy); color:#fff;
+  align-items:center; justify-content:center; text-align:center;
+  padding:32px; flex-direction:column; gap:14px;
+}
+.rotate-overlay .icone{font-size:44px;}
+.rotate-overlay p{font-family:var(--serif); font-size:16px; max-width:280px;}
+@media (orientation:landscape) and (max-height:500px){
+  .rotate-overlay{display:flex;}
+}
