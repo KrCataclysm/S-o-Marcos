@@ -2,16 +2,40 @@
    quanto pela tela de histórico (dados recuperados do Supabase). */
 let RESULT = null;
 let filtroCrit = null;
+let anonimo = false;
+let anonMap = new Map();
 
 function showPainel(result) {
   RESULT = result;
   filtroCrit = null;
+  anonimo = false;
+  $('chkAnonimo').checked = false;
   $('painel').style.display = 'block';
   renderPainel();
 }
 
+// Mesmo fornecedor sempre vira o mesmo "Fornecedor N" dentro de uma rodada —
+// numerado na ordem em que aparece no resumo (mais crítico primeiro).
+function montarAnonMap(resumoForn) {
+  anonMap = new Map();
+  resumoForn.forEach((r, i) => anonMap.set(r.forn, 'Fornecedor ' + (i + 1)));
+}
+function nomeExibido(forn) {
+  return anonimo ? (anonMap.get(forn) || forn) : forn;
+}
+// "Fonte alternativa" cita nomes de outros fornecedores (às vezes fora da pauta) —
+// no modo anônimo não dá pra só trocar pelo Fornecedor N (nem sempre está no mapa),
+// então vira um indicativo sem identificar quem é.
+function fonteExibida(d) {
+  if (!anonimo) return d.fonte;
+  if (d.fonte === 'Sem informação') return d.fonte;
+  return d.fonteBloq ? 'Bloqueado' : 'Sim';
+}
+
 function renderPainel() {
   const { detalhe, resumoForn, dtP, W } = RESULT;
+  montarAnonMap(resumoForn);
+  $('lblAnonimo').style.display = 'flex';
   $('btnExcel').style.display = 'inline-block';
   $('btnPrint').style.display = 'inline-block';
   $('pTitulo').textContent = 'Painel de Criticidade — Pauta de Pagamento ' + dtP.toLocaleDateString('pt-BR');
@@ -43,7 +67,7 @@ function renderPainel() {
     '</div><div class="legend">' + Object.entries(cnt).map(([k, v]) => `${k}: <b>${v}</b>`).join(' &nbsp;·&nbsp; ') + '</div>';
 
   $('tblForn').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Pior criticidade</th><th class="num">Itens a comprar (ponto de pedido)</th><th class="num">Valor na pauta (R$)</th><th class="num">Valor em aberto (R$)</th></tr></thead><tbody>' +
-    resumoForn.map(r => `<tr><td><b>${r.forn}</b></td><td>${r.cat || '—'}</td>
+    resumoForn.map(r => `<tr><td><b>${nomeExibido(r.forn)}</b></td><td>${r.cat || '—'}</td>
       <td><span class="badge ${CRIT_BADGE[r.pior]}">${r.pior}</span></td>
       <td class="num">${r.nPP || 0}</td>
       <td class="num">${r.vPauta != null ? fmtBR(r.vPauta) : '—'}</td>
@@ -65,11 +89,11 @@ function renderDetalhe() {
   $('fInfo').textContent = rows.length + ' de ' + RESULT.detalhe.length + ' itens' + (filtroCrit ? ' · filtro: ' + filtroCrit : '');
   $('tblDet').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor na pauta (R$)</th><th>Obs.</th></tr></thead><tbody>' +
     rows.map(d => `<tr>
-      <td><b>${d.forn}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
+      <td><b>${nomeExibido(d.forn)}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
       <td class="num">${d.saldo != null ? fmtInt(d.saldo) : '—'}</td>
       <td class="num">${d.diasTxt === 'Ruptura' ? '<b style="color:var(--red)">Ruptura</b>' : d.diasTxt}</td>
       <td class="num">${d.transito != null ? fmtInt(d.transito) : '—'}</td>
-      <td>${d.fonteBloq ? '<span class="alt-block">' + d.fonte + '</span>' : d.fonte}</td>
+      <td>${!anonimo && d.fonteBloq ? '<span class="alt-block">' + d.fonte + '</span>' : fonteExibida(d)}</td>
       <td><span class="badge ${CRIT_BADGE[d.crit]}">${d.crit}</span></td>
       <td class="num">${d.vPauta != null ? fmtBR(d.vPauta) : '—'}</td>
       <td class="obs">${d.obs || ''}</td></tr>`).join('') + '</tbody>';
@@ -105,14 +129,14 @@ function exportExcel() {
 
   const s2 = [['HOSPITAL SÃO MARCOS — APCC  |  Resumo de Criticidade por Fornecedor'],
   ['Fornecedor', 'Comprador', 'Categoria na Pauta', 'Pior Criticidade', 'Itens Analisados (' + W + 'd)', 'Itens a Comprar (Ponto de Pedido)', 'Valor Comprado ' + W + 'd (R$)', 'Valor na Pauta (R$)', 'Valor em Aberto (R$)'],
-  ...resumoForn.map(r => [r.forn, r.comprador || '', r.cat || '', r.pior, r.nItens, r.nPP || 0, +(r.vJanela || 0).toFixed(2), r.vPauta != null ? +r.vPauta.toFixed(2) : '', r.valorAberto != null ? +r.valorAberto.toFixed(2) : ''])];
+  ...resumoForn.map(r => [nomeExibido(r.forn), r.comprador || '', r.cat || '', r.pior, r.nItens, r.nPP || 0, +(r.vJanela || 0).toFixed(2), r.vPauta != null ? +r.vPauta.toFixed(2) : '', r.valorAberto != null ? +r.valorAberto.toFixed(2) : ''])];
   const ws2 = XLSX.utils.aoa_to_sheet(s2); ws2['!cols'] = [{ wch: 34 }, { wch: 20 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Resumo por Fornecedor');
 
   const s3 = [['HOSPITAL SÃO MARCOS — APCC  |  Detalhamento — Itens x Fornecedores Bloqueados x Estoque'],
   ['Comprador', 'Fornecedor', 'Categoria na Pauta', 'Produto Comprado (' + W + 'd)', 'Qtd ' + W + 'd', 'Valor ' + W + 'd (R$)', 'Saldo Estoque', 'Dias de Estoque', 'Em Trânsito', 'Fonte Alternativa', 'Criticidade', 'Valor na Pauta (R$)', 'Observação'],
-  ...detalhe.map(d => [d.comprador || '', d.forn, d.cat || '', d.produto, d.q ?? '', d.v != null ? +d.v.toFixed(2) : '', d.saldo ?? '',
-  d.dias != null ? +d.dias.toFixed(1) : d.diasTxt, d.transito ?? '', d.fonte, d.crit, d.vPauta != null ? +d.vPauta.toFixed(2) : '', d.obs || ''])];
+  ...detalhe.map(d => [d.comprador || '', nomeExibido(d.forn), d.cat || '', d.produto, d.q ?? '', d.v != null ? +d.v.toFixed(2) : '', d.saldo ?? '',
+  d.dias != null ? +d.dias.toFixed(1) : d.diasTxt, d.transito ?? '', fonteExibida(d), d.crit, d.vPauta != null ? +d.vPauta.toFixed(2) : '', d.obs || ''])];
   const ws3 = XLSX.utils.aoa_to_sheet(s3);
   ws3['!cols'] = [{ wch: 16 }, { wch: 26 }, { wch: 30 }, { wch: 52 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 15 }, { wch: 16 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'Detalhamento por Item');
@@ -131,4 +155,25 @@ function initPanelInteractions() {
   }));
   $('btnExcel').addEventListener('click', exportExcel);
   $('btnPrint').addEventListener('click', () => window.print());
+  $('chkAnonimo').addEventListener('change', async e => {
+    const querido = e.target.checked;
+    e.target.checked = !querido; // só confirma visualmente depois da senha validada
+    const ok = await confirmarSenhaAdmin();
+    if (!ok) return;
+    e.target.checked = querido;
+    anonimo = querido;
+    if (RESULT) renderPainel();
+  });
+}
+
+// A alavanca de ocultar/mostrar fornecedor é protegida pela senha de admin —
+// se já tem sessão de admin válida no navegador (ex.: entrou no ADM antes), não pede de novo.
+async function confirmarSenhaAdmin() {
+  if (getAdminSession()) return true;
+  const senha = prompt('Senha de administrador para usar esta função:');
+  if (!senha) return false;
+  const { data, error } = await supabaseClient.rpc('rpc_admin_login', { p_password: senha });
+  if (error || !data || !data.length) { alert('Senha de administrador incorreta.'); return false; }
+  setAdminSession(data[0].token, data[0].expires_at);
+  return true;
 }

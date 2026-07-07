@@ -9,6 +9,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<script src="assets/vendor/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="assets/css/painel.css">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
@@ -95,6 +96,38 @@
     <div class="save-toast" id="admToast"></div>
 
     <section class="block">
+      <h3>Arquivos de referência</h3>
+      <p class="desc">Guarda uma cópia do Saldo do dia e do Relatório de ponto de pedido mais recentes, para consulta ou reenvio sem precisar pedir de novo pra quem gerou. Limite de 10MB por arquivo. A Base de compras (12 meses) não entra aqui — ela é grande demais e já fica salva no navegador de quem gera o painel.</p>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:14px;">
+        <div>
+          <label class="small">Saldo do dia + consumo 3 meses<br>
+            <input type="file" id="fileArqSaldo" accept=".xls,.xlsx">
+          </label>
+          <button class="btn-ghost" id="btnUpArqSaldo" style="margin-top:6px;">Guardar</button>
+        </div>
+        <div>
+          <label class="small">Relatório de ponto de pedido<br>
+            <input type="file" id="fileArqRel" accept=".xls,.xlsx">
+          </label>
+          <button class="btn-ghost" id="btnUpArqRel" style="margin-top:6px;">Guardar</button>
+        </div>
+      </div>
+      <div class="status" id="stArquivos"></div>
+      <div id="listaArquivos" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="block">
+      <h3>Histórico de painéis</h3>
+      <p class="desc">Apagar uma rodada do histórico, ou importar uma rodada antiga a partir de um Excel já exportado pelo próprio sistema (as 3 abas: Resumo Executivo, Resumo por Fornecedor, Detalhamento por Item) — útil pra trazer pro histórico painéis gerados antes dessa versão web.</p>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <input type="file" id="fileImportarPainel" accept=".xls,.xlsx" style="max-width:340px;">
+        <button class="btn-ghost" id="btnImportarPainel">Importar deste Excel</button>
+      </div>
+      <div class="status" id="stImportar"></div>
+      <div id="listaHistoricoAdm" style="margin-top:12px;"></div>
+    </section>
+
+    <section class="block">
       <h3>Comentários de todos os painéis</h3>
       <p class="desc">Editar ou apagar qualquer comentário, de qualquer rodada.</p>
       <div id="listaComentariosAdm" class="comentarios-lista"></div>
@@ -111,6 +144,8 @@
 (function init(){
   if (!requireAuth()) return;
   $('btnSair').addEventListener('click', logout);
+
+  function setStatus(el, msg, cls) { el.textContent = msg; el.className = 'status ' + cls; }
 
   // Para deixar mais um texto editável no ADM sem mexer em SQL: acrescente uma linha aqui
   // (grupo, key, label) e marque o elemento correspondente com data-txt="key" (ou
@@ -268,6 +303,208 @@
     $('admPainel').style.display = 'block';
     carregarTemaAtual();
     carregarComentariosAdm();
+    carregarArquivosAdm();
+    carregarHistoricoAdm();
+  }
+
+  // ---------- Histórico: apagar / importar de Excel exportado ----------
+  async function carregarHistoricoAdm() {
+    const lista = $('listaHistoricoAdm');
+    const { data, error } = await callAuthed('rpc_list_paineis', {});
+    if (error) { lista.innerHTML = '<p class="hist-error">Não foi possível carregar o histórico.</p>'; return; }
+    if (!data || !data.length) { lista.innerHTML = '<p class="footnote">Nenhum painel no histórico ainda.</p>'; return; }
+    lista.innerHTML = data.map(p => {
+      const dt = new Date(p.data_pauta + 'T12:00:00').toLocaleDateString('pt-BR');
+      const k = p.kpis || {};
+      return `<div class="comentario-item" data-id="${p.id}">
+        <div><b>Pauta ${dt}</b> — ${k.fornecedores ?? '—'} fornecedores · R$ ${k.valorTotal != null ? fmtBR(k.valorTotal) : '—'} · ${k.itensAnalisados ?? '—'} itens</div>
+        <div class="comentario-data">Gerado em ${new Date(p.gerado_em).toLocaleString('pt-BR')}${p.gerado_por ? ' · por ' + escapeHtml(p.gerado_por) : ''}</div>
+        <div style="margin-top:6px;">
+          <button class="btn-ghost btn-apagar-painel" style="padding:4px 10px; font-size:11.5px; color:var(--red); border-color:var(--red);">Apagar do histórico</button>
+        </div>
+      </div>`;
+    }).join('');
+    lista.querySelectorAll('.btn-apagar-painel').forEach(btn => btn.addEventListener('click', async e => {
+      const admin = getAdminSession();
+      if (!admin) { location.reload(); return; }
+      const id = e.target.closest('.comentario-item').dataset.id;
+      const { error } = await supabaseClient.rpc('rpc_admin_delete_painel', { p_admin_token: admin.token, p_id: id });
+      if (error) { setStatus($('stImportar'), 'Erro ao apagar: ' + error.message, 'err'); return; }
+      carregarHistoricoAdm();
+    }));
+  }
+
+  // Acha a coluna cujo cabeçalho (minúsculo, sem acento) contém todas as palavras-chave.
+  function acharCol(headers, ...palavras) {
+    return headers.findIndex(h => {
+      const n = norm(h || '');
+      return palavras.every(p => n.includes(p));
+    });
+  }
+  function valorLinha(rows, ...palavras) {
+    const r = rows.find(r => r && r[0] && palavras.every(p => norm(String(r[0])).includes(p)));
+    return r ? r[1] : null;
+  }
+
+  function parsePainelExcel(wb) {
+    const s1 = XLSX.utils.sheet_to_json(wb.Sheets['Resumo Executivo'], { header: 1, defval: null });
+    const s2 = XLSX.utils.sheet_to_json(wb.Sheets['Resumo por Fornecedor'], { header: 1, defval: null });
+    const s3 = XLSX.utils.sheet_to_json(wb.Sheets['Detalhamento por Item'], { header: 1, defval: null });
+    if (!s1 || !s2 || !s3) throw new Error('Excel não tem as 3 abas esperadas (Resumo Executivo, Resumo por Fornecedor, Detalhamento por Item).');
+
+    const tituloRow = s1.find(r => r && r[0] && /pauta de pagamento/i.test(r[0]));
+    const mData = tituloRow && String(tituloRow[0]).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (!mData) throw new Error('Não encontrei a data da pauta no título da aba "Resumo Executivo".');
+    const dataPauta = mData[3] + '-' + mData[2] + '-' + mData[1];
+
+    const itensRow = s1.find(r => r && r[0] && norm(String(r[0])).includes('itens analisados'));
+    const mW = itensRow && String(itensRow[0]).match(/(\d+)\s*dias/);
+    const W = mW ? +mW[1] : 90;
+
+    const kpis = {
+      fornecedores: valorLinha(s1, 'fornecedores na pauta'),
+      valorTotal: valorLinha(s1, 'valor da pauta') ?? valorLinha(s1, 'valor total da pauta'),
+      valorAberto: valorLinha(s1, 'valor em aberto'),
+      itensCriticos: valorLinha(s1, 'itens em risco'),
+      itensAnalisados: valorLinha(s1, 'itens analisados')
+    };
+
+    const h2 = (s2[1] || []).map(String);
+    const cF = acharCol(h2, 'fornecedor'), cCo = acharCol(h2, 'comprador'), cCat = acharCol(h2, 'categoria'),
+      cP = acharCol(h2, 'criticidade'), cNi = acharCol(h2, 'itens', 'analisad'), cNpp = acharCol(h2, 'ponto', 'pedido'),
+      cVj = acharCol(h2, 'valor', 'comprado'), cVp = acharCol(h2, 'valor', 'pauta'), cVa = acharCol(h2, 'valor', 'aberto');
+    const resumoForn = s2.slice(2).filter(r => r && r[cF]).map(r => ({
+      forn: String(r[cF]), comprador: cCo >= 0 ? r[cCo] || '' : '', cat: cCat >= 0 ? r[cCat] || '' : '',
+      pior: r[cP], nItens: cNi >= 0 ? (+r[cNi] || 0) : 0, nPP: cNpp >= 0 ? (+r[cNpp] || 0) : 0,
+      vJanela: cVj >= 0 ? (+r[cVj] || 0) : 0,
+      vPauta: cVp >= 0 && r[cVp] !== '' && r[cVp] != null ? +r[cVp] : null,
+      valorAberto: cVa >= 0 && r[cVa] !== '' && r[cVa] != null ? +r[cVa] : null
+    }));
+
+    const h3 = (s3[1] || []).map(String);
+    const dCo = acharCol(h3, 'comprador'), dF = acharCol(h3, 'fornecedor'), dCat = acharCol(h3, 'categoria'),
+      dProd = acharCol(h3, 'produto'), dQ = acharCol(h3, 'qtd'),
+      dV = h3.findIndex((x, i) => norm(x).includes('valor') && !norm(x).includes('pauta') && i !== dProd),
+      dSaldo = acharCol(h3, 'saldo'), dDias = acharCol(h3, 'dias', 'estoque'), dTrans = acharCol(h3, 'transito'),
+      dFonte = acharCol(h3, 'fonte'), dCrit = acharCol(h3, 'criticidade'), dVp = acharCol(h3, 'valor', 'pauta'),
+      dObs = acharCol(h3, 'observa');
+    const detalhe = s3.slice(2).filter(r => r && r[dF]).map(r => {
+      const fonte = dFonte >= 0 ? (r[dFonte] || 'Sem informação') : 'Sem informação';
+      const diasRaw = dDias >= 0 ? r[dDias] : null;
+      const dias = typeof diasRaw === 'number' ? diasRaw : null;
+      return {
+        comprador: dCo >= 0 ? r[dCo] || '' : '', forn: String(r[dF]), cat: dCat >= 0 ? r[dCat] || '' : '',
+        produto: dProd >= 0 ? r[dProd] : '', q: dQ >= 0 && r[dQ] !== '' ? +r[dQ] : null,
+        v: dV >= 0 && r[dV] !== '' ? +r[dV] : null,
+        saldo: dSaldo >= 0 && r[dSaldo] !== '' ? r[dSaldo] : null,
+        dias, diasTxt: dias != null ? fmtBR(dias, 1) : (diasRaw === 'Ruptura' ? 'Ruptura' : (diasRaw || 'Sem informação')),
+        transito: dTrans >= 0 && r[dTrans] !== '' ? r[dTrans] : null,
+        fonte, fonteBloq: /bloqueado/i.test(String(fonte)),
+        crit: dCrit >= 0 ? r[dCrit] : 'Monitorar',
+        vPauta: dVp >= 0 && r[dVp] !== '' && r[dVp] != null ? +r[dVp] : null,
+        obs: dObs >= 0 ? (r[dObs] || '') : ''
+      };
+    });
+
+    return { dataPauta, W, kpis, resumoForn, detalhe };
+  }
+
+  async function importarPainelExcel() {
+    const input = $('fileImportarPainel');
+    const file = input.files[0];
+    if (!file) { setStatus($('stImportar'), 'Escolha um arquivo primeiro.', 'err'); return; }
+    setStatus($('stImportar'), 'Lendo ' + file.name + '…', 'warn');
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const { dataPauta, W, kpis, resumoForn, detalhe } = parsePainelExcel(wb);
+      const { error } = await callAuthed('rpc_save_painel', {
+        p_data_pauta: dataPauta, p_janela_analise: W, p_gerado_por: 'Importado de Excel (ADM)',
+        p_kpis: kpis, p_resumo_fornecedores: resumoForn, p_detalhamento: detalhe
+      });
+      if (error) throw error;
+      setStatus($('stImportar'), 'Painel de ' + dataPauta.split('-').reverse().join('/') + ' importado para o histórico.', 'ok');
+      input.value = '';
+      carregarHistoricoAdm();
+    } catch (err) {
+      setStatus($('stImportar'), 'Erro ao importar: ' + err.message, 'err');
+    }
+  }
+
+  function fileParaBase64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1] || '');
+      r.onerror = () => rej(new Error('Falha ao ler o arquivo'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function base64ParaBlob(b64, mime) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime || 'application/octet-stream' });
+  }
+
+  const TIPO_LABEL = { saldo: 'Saldo do dia', relatorio_ponto_pedido: 'Relatório de ponto de pedido' };
+
+  async function subirArquivo(inputId, tipo) {
+    const admin = getAdminSession();
+    if (!admin) { location.reload(); return; }
+    const input = $(inputId);
+    const file = input.files[0];
+    if (!file) { setStatus($('stArquivos'), 'Escolha um arquivo primeiro.', 'err'); return; }
+    if (file.size > 10 * 1024 * 1024) { setStatus($('stArquivos'), 'Arquivo maior que 10MB — não pode ser guardado aqui.', 'err'); return; }
+    setStatus($('stArquivos'), 'Enviando ' + file.name + '…', 'warn');
+    try {
+      const b64 = await fileParaBase64(file);
+      const { error } = await supabaseClient.rpc('rpc_admin_upload_arquivo', {
+        p_admin_token: admin.token, p_tipo: tipo, p_nome_arquivo: file.name,
+        p_conteudo_base64: b64, p_enviado_por: null
+      });
+      if (error) throw error;
+      setStatus($('stArquivos'), 'Guardado: ' + file.name, 'ok');
+      input.value = '';
+      carregarArquivosAdm();
+    } catch (err) {
+      setStatus($('stArquivos'), 'Erro ao guardar: ' + err.message, 'err');
+    }
+  }
+
+  async function carregarArquivosAdm() {
+    const admin = getAdminSession();
+    const wrap = $('listaArquivos');
+    if (!admin) return;
+    const { data, error } = await supabaseClient.rpc('rpc_admin_list_arquivos', { p_admin_token: admin.token });
+    if (error) { wrap.innerHTML = '<p class="hist-error">Não foi possível carregar os arquivos guardados.</p>'; return; }
+    if (!data || !data.length) { wrap.innerHTML = '<p class="footnote">Nenhum arquivo guardado ainda.</p>'; return; }
+    wrap.innerHTML = data.map(a => `<div class="comentario-item" data-id="${a.id}">
+        <div><b>${TIPO_LABEL[a.tipo] || a.tipo}</b> — ${escapeHtml(a.nome_arquivo)}</div>
+        <div class="comentario-data">${(a.tamanho_bytes / 1024).toFixed(0)} KB · guardado em ${new Date(a.criado_em).toLocaleString('pt-BR')}${a.enviado_por ? ' · ' + escapeHtml(a.enviado_por) : ''}</div>
+        <div style="margin-top:6px; display:flex; gap:8px;">
+          <button class="btn-ghost btn-baixar-arquivo" style="padding:4px 10px; font-size:11.5px;">Baixar</button>
+          <button class="btn-ghost btn-apagar-arquivo" style="padding:4px 10px; font-size:11.5px; color:var(--red); border-color:var(--red);">Apagar</button>
+        </div>
+      </div>`).join('');
+
+    wrap.querySelectorAll('.btn-baixar-arquivo').forEach(btn => btn.addEventListener('click', async e => {
+      const id = e.target.closest('.comentario-item').dataset.id;
+      const { data, error } = await supabaseClient.rpc('rpc_admin_download_arquivo', { p_admin_token: admin.token, p_id: id });
+      if (error || !data || !data.length) { setStatus($('stArquivos'), 'Erro ao baixar: ' + (error ? error.message : 'não encontrado'), 'err'); return; }
+      const { nome_arquivo, conteudo_base64 } = data[0];
+      const url = URL.createObjectURL(base64ParaBlob(conteudo_base64));
+      const a = document.createElement('a');
+      a.href = url; a.download = nome_arquivo;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }));
+    wrap.querySelectorAll('.btn-apagar-arquivo').forEach(btn => btn.addEventListener('click', async e => {
+      const id = e.target.closest('.comentario-item').dataset.id;
+      const { error } = await supabaseClient.rpc('rpc_admin_delete_arquivo', { p_admin_token: admin.token, p_id: id });
+      setStatus($('stArquivos'), error ? 'Erro ao apagar: ' + error.message : 'Arquivo apagado.', error ? 'err' : 'ok');
+      if (!error) carregarArquivosAdm();
+    }));
   }
 
   async function carregarComentariosAdm() {
@@ -332,6 +569,9 @@
   $('txtLogoUrl').addEventListener('input', atualizarPreviewLogo);
   $('btnSalvarTema').addEventListener('click', salvarTema);
   $('btnRestaurarTema').addEventListener('click', () => preencherForm(DEFAULTS));
+  $('btnUpArqSaldo').addEventListener('click', () => subirArquivo('fileArqSaldo', 'saldo'));
+  $('btnUpArqRel').addEventListener('click', () => subirArquivo('fileArqRel', 'relatorio_ponto_pedido'));
+  $('btnImportarPainel').addEventListener('click', importarPainelExcel);
 })();
 </script>
 </body>
