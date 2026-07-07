@@ -155,8 +155,25 @@ function initPanelInteractions() {
   }));
   $('btnExcel').addEventListener('click', exportExcel);
   $('btnPrint').addEventListener('click', () => window.print());
-  $('chkAnonimo').addEventListener('change', e => {
-    anonimo = e.target.checked;
+  $('chkAnonimo').addEventListener('change', async e => {
+    const querido = e.target.checked;
+    e.target.checked = !querido; // só confirma visualmente depois da senha validada
+    const ok = await confirmarSenhaAdmin();
+    if (!ok) return;
+    e.target.checked = querido;
+    anonimo = querido;
     if (RESULT) renderPainel();
   });
+}
+
+// A alavanca de ocultar/mostrar fornecedor é protegida pela senha de admin —
+// se já tem sessão de admin válida no navegador (ex.: entrou no ADM antes), não pede de novo.
+async function confirmarSenhaAdmin() {
+  if (getAdminSession()) return true;
+  const senha = prompt('Senha de administrador para usar esta função:');
+  if (!senha) return false;
+  const { data, error } = await supabaseClient.rpc('rpc_admin_login', { p_password: senha });
+  if (error || !data || !data.length) { alert('Senha de administrador incorreta.'); return false; }
+  setAdminSession(data[0].token, data[0].expires_at);
+  return true;
 }
