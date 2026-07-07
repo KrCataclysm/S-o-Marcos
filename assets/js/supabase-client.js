@@ -39,8 +39,35 @@ async function logout() {
   if (s && s.token) {
     try { await supabaseClient.rpc('rpc_logout', { p_token: s.token }); } catch (e) { /* ignore */ }
   }
+  const a = getAdminSession();
+  if (a && a.token) {
+    try { await supabaseClient.rpc('rpc_admin_logout', { p_token: a.token }); } catch (e) { /* ignore */ }
+  }
   clearSession();
+  clearAdminSession();
   window.location.href = 'index.html';
+}
+
+// ---------- Sessão de admin (senha separada, aba ADM) ----------
+const ADMIN_SESSION_KEY = 'hsm_admin_session';
+
+function getAdminSession() {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.token || !s.expiresAt) return null;
+    if (new Date(s.expiresAt).getTime() <= Date.now()) { sessionStorage.removeItem(ADMIN_SESSION_KEY); return null; }
+    return s;
+  } catch (e) { return null; }
+}
+
+function setAdminSession(token, expiresAt) {
+  sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ token, expiresAt }));
+}
+
+function clearAdminSession() {
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
 // Chama uma RPC autenticada; se a sessão tiver expirado no servidor, limpa e redireciona ao login.
