@@ -117,6 +117,15 @@
     </section>
 
     <section class="block">
+      <h3>Valores em aberto por fornecedor</h3>
+      <p class="desc">Preenche sozinho a coluna "Valor em aberto" do painel, casando pelo nome do fornecedor — não depende mais de colar a pauta com uma 2ª coluna (o WhatsApp costuma estragar a tabulação). Cole uma linha por fornecedor, no formato <i>Fornecedor - R$ valor</i>. Salvar aqui substitui a lista inteira.</p>
+      <textarea id="txtValoresAbertos" style="min-height:160px;" placeholder="Oncoexo - R$ 885.288,01&#10;Fresenius Medical Care Ltda - R$ 218.775,42&#10;..."></textarea>
+      <button class="btn-ghost" id="btnSalvarValoresAbertos" style="margin-top:8px;">Salvar valores</button>
+      <div class="status" id="stValoresAbertos"></div>
+      <div id="listaValoresAbertos" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="block">
       <h3>Histórico de painéis</h3>
       <p class="desc">Apagar uma rodada do histórico, ou importar uma rodada antiga a partir de um Excel já exportado pelo próprio sistema (as 3 abas: Resumo Executivo, Resumo por Fornecedor, Detalhamento por Item) — útil pra trazer pro histórico painéis gerados antes dessa versão web.</p>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
@@ -199,7 +208,7 @@
       passo2_titulo: '2 · Saldo do dia + consumo 3 meses',
       passo2_texto: 'Export diário (.xlsx) — colunas <b>nm_produto, nm_produto1, nm_local, sd_estoque, qt_item3meses</b>. Os saldos e consumos de todos os locais são somados por produto.',
       passo3_titulo: '3 · Fornecedores da pauta (bloqueados)',
-      passo3_texto: 'Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. Se colar direto do Excel/e-mail com uma 2ª coluna trazendo o <b>valor em aberto com o fornecedor</b>, ela também é capturada automaticamente.',
+      passo3_texto: 'Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. O <b>valor em aberto com o fornecedor</b> é preenchido automaticamente com o que estiver guardado no ADM (seção "Valores em aberto"); se colar direto do Excel/e-mail com uma 2ª coluna trazendo esse valor, ela tem prioridade.',
       passo4_titulo: '4 · Ponto de pedido do dia (opcional)',
       passo4_texto: 'Relatório diário de Medicamentos e Materiais (.xls) — abas <b>Materiais / Medicamentos / Quimioterápicos</b>. Acrescenta ao painel a <b>quantidade em trânsito</b> e sinaliza itens que já atingiram o ponto de pedido.',
       regua_titulo: 'Régua de criticidade adotada',
@@ -305,6 +314,47 @@
     carregarComentariosAdm();
     carregarArquivosAdm();
     carregarHistoricoAdm();
+    carregarValoresAbertosAdm();
+  }
+
+  // ---------- Valores em aberto por fornecedor ----------
+  function parseValoresAbertosTexto(txt) {
+    const out = [];
+    for (let raw of txt.split(/\r?\n/)) {
+      let line = raw.trim();
+      if (!line) continue;
+      line = line.replace(/^\*+\s*/, '');
+      const m = line.match(/^(.*?)\s*-\s*R\$\s*([\d.\s]+,\d{1,2}|[\d.]+)\s*$/i);
+      if (!m) continue;
+      const nome = m[1].trim();
+      const valor = parseNum(m[2]);
+      if (nome && valor != null) out.push({ nome, valor });
+    }
+    return out;
+  }
+
+  async function carregarValoresAbertosAdm() {
+    const lista = $('listaValoresAbertos');
+    const { data, error } = await supabaseClient.rpc('rpc_get_valores_abertos');
+    if (error) { lista.innerHTML = '<p class="hist-error">Não foi possível carregar.</p>'; return; }
+    if (!data || !data.length) { lista.innerHTML = '<p class="footnote">Nenhum valor guardado ainda.</p>'; return; }
+    const linhas = data.slice().sort((a, b) => a.nome_fornecedor.localeCompare(b.nome_fornecedor));
+    lista.innerHTML = '<table style="width:100%;"><thead><tr><th>Fornecedor</th><th class="num">Valor</th></tr></thead><tbody>' +
+      linhas.map(v => `<tr><td>${escapeHtml(v.nome_fornecedor)}</td><td class="num">R$ ${fmtBR(+v.valor)}</td></tr>`).join('') + '</tbody></table>';
+    if (!$('txtValoresAbertos').value.trim()) {
+      $('txtValoresAbertos').value = linhas.map(v => `${v.nome_fornecedor} - R$ ${fmtBR(+v.valor)}`).join('\n');
+    }
+  }
+
+  async function salvarValoresAbertos() {
+    const admin = getAdminSession();
+    if (!admin) { location.reload(); return; }
+    const itens = parseValoresAbertosTexto($('txtValoresAbertos').value);
+    if (!itens.length) { setStatus($('stValoresAbertos'), 'Nenhuma linha reconhecida. Use o formato "Fornecedor - R$ valor".', 'err'); return; }
+    const { error } = await supabaseClient.rpc('rpc_admin_set_valores_abertos', { p_admin_token: admin.token, p_itens: itens });
+    if (error) { setStatus($('stValoresAbertos'), 'Erro ao salvar: ' + error.message, 'err'); return; }
+    setStatus($('stValoresAbertos'), itens.length + ' fornecedores salvos.', 'ok');
+    carregarValoresAbertosAdm();
   }
 
   // ---------- Histórico: apagar / importar de Excel exportado ----------
@@ -572,6 +622,7 @@
   $('btnUpArqSaldo').addEventListener('click', () => subirArquivo('fileArqSaldo', 'saldo'));
   $('btnUpArqRel').addEventListener('click', () => subirArquivo('fileArqRel', 'relatorio_ponto_pedido'));
   $('btnImportarPainel').addEventListener('click', importarPainelExcel);
+  $('btnSalvarValoresAbertos').addEventListener('click', salvarValoresAbertos);
 })();
 </script>
 </body>

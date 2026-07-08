@@ -6,6 +6,26 @@ let SALDO = null;     // Map normProduto -> {produto, saldo, q3m}
 let SALDO_GEN = null; // Map normProduto1 -> {saldo, q3m}
 let RELMAP = null;    // Map normProduto -> {aba, sdHosp, consDiario, dias, transito}
 let PAUTA = [];        // [{nome, categoria, valor, comprador, matches:[nomes base], incluir:true}]
+let VALORES_ABERTOS = new Map(); // normFornecedor -> valor, guardado no ADM
+
+async function carregarValoresAbertos() {
+  try {
+    const { data, error } = await supabaseClient.rpc('rpc_get_valores_abertos');
+    if (error || !data) return;
+    VALORES_ABERTOS = new Map(data.map(v => [norm(v.nome_fornecedor), +v.valor]));
+  } catch (e) { /* mantém o que já tinha carregado */ }
+}
+
+// Casa pelo mesmo critério de matchSupplier: exato primeiro, depois substring nos dois sentidos.
+function lookupValorAberto(nome) {
+  if (!VALORES_ABERTOS.size) return null;
+  const n = norm(nome);
+  if (VALORES_ABERTOS.has(n)) return VALORES_ABERTOS.get(n);
+  for (const [key, valor] of VALORES_ABERTOS) {
+    if (key.includes(n) || (n.includes(key) && key.length >= 4)) return valor;
+  }
+  return null;
+}
 
 const STORAGE_KEY = 'hsm_base_compras_v2';
 
@@ -186,7 +206,8 @@ function gerarPainel() {
         });
       }
     }
-    resumoForn.push({ forn: p.nome, comprador: p.comprador, cat: p.categoria, pior, nItens: itens.length, nPP, vJanela, vPauta: p.valor, valorAberto: p.valorAberto });
+    const valorAberto = p.valorAberto != null ? p.valorAberto : lookupValorAberto(p.nome);
+    resumoForn.push({ forn: p.nome, comprador: p.comprador, cat: p.categoria, pior, nItens: itens.length, nPP, vJanela, vPauta: p.valor, valorAberto });
   }
 
   detalhe.sort((a, b) => CRIT_ORD[a.crit] - CRIT_ORD[b.crit] || (b.v || 0) - (a.v || 0));
@@ -291,6 +312,7 @@ function initGeradorInteractions() {
 }
 
 function initGeradorState() {
+  carregarValoresAbertos();
   $('hoje').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   $('dtPauta').value = new Date().toISOString().slice(0, 10);
   const saved = tryLoad(STORAGE_KEY);
