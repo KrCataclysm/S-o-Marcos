@@ -51,7 +51,7 @@
     </div>
     <div class="step">
       <h2 data-txt="passo3_titulo">3 · Fornecedores da pauta (bloqueados)</h2>
-      <p class="hint" data-txt-html="passo3_texto">Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. Se colar direto do Excel/e-mail com uma 2ª coluna trazendo o <b>valor em aberto com o fornecedor</b>, ela também é capturada automaticamente.</p>
+      <p class="hint" data-txt-html="passo3_texto">Cole o e-mail da pauta do dia. O gerador identifica fornecedor, categoria, valor e comprador em linhas no formato <i>Fornecedor - Categoria - R$ valor - Comprador (ramal)</i>. O <b>valor em aberto com o fornecedor</b> é preenchido automaticamente com o que estiver guardado no ADM (seção "Valores em aberto"); se colar direto do Excel/e-mail com uma 2ª coluna trazendo esse valor, ela tem prioridade.</p>
       <textarea id="txtPauta" placeholder="*Oncoexo - Quimioterapias - R$ 82.919,49 - Junior/ Juliana (8093/ 8030)&#10;Fresenius Medical Care Ltda - Hemodiálise - R$ 8.113,00 - Juliana (8030)&#10;..."></textarea>
       <button class="btn-ghost" id="btnLerPauta" style="margin-top:8px;">Identificar fornecedores</button>
       <div class="status" id="stPauta"></div>
