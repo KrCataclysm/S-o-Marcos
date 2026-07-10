@@ -179,8 +179,9 @@ function gerarPainel() {
       pior = cr;
     } else {
       for (const it of itens) {
-        let s = SALDO.get(norm(it.produto)), viaGen = false;
-        if (!s && it.generico) { s = SALDO_GEN.get(norm(it.generico)); viaGen = !!s; }
+        let s = null, viaGen = false;
+        if (it.generico) { s = SALDO_GEN.get(norm(it.generico)); viaGen = !!s; }
+        if (!s) s = SALDO.get(norm(it.produto));
         const saldo = s ? s.saldo : null, q3m = s ? s.q3m : 0;
         let dias = null, ruptura = false, diasTxt = 'Sem informação';
         if (s) {
@@ -194,7 +195,7 @@ function gerarPainel() {
         }
         const crit = classifica(dias, ruptura, temFonte);
         if (CRIT_ORD[crit] < CRIT_ORD[pior]) pior = crit;
-        const rel = RELMAP ? (RELMAP.get(norm(it.produto)) || (it.generico ? RELMAP.get(norm(it.generico)) : null)) : null;
+        const rel = RELMAP ? ((it.generico ? RELMAP.get(norm(it.generico)) : null) || RELMAP.get(norm(it.produto))) : null;
         if (rel) nPP++;
         let obs = (s ? '' : 'Item não localizado no saldo do dia.') + (viaGen ? ' Saldo apurado pelo genérico.' : '');
         if (rel) obs = ('⚠ No ponto de pedido do dia (' + rel.aba + '). ' + obs).trim();
