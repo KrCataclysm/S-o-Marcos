@@ -71,9 +71,9 @@
         <div class="kpis">
           <div>Fornecedores<br><b>${k.fornecedores ?? '—'}</b></div>
           <div>Valor a comprar<br><b>R$ ${k.valorTotal != null ? fmtBR(k.valorTotal) : '—'}</b></div>
+          <div>Valor em aberto<br><b>R$ ${k.valorAberto != null ? fmtBR(k.valorAberto) : '—'}</b></div>
           <div class="crit">Itens críticos<br><b>${k.itensCriticos ?? '—'}</b></div>
           <div>Itens analisados<br><b>${k.itensAnalisados ?? '—'}</b></div>
-          <div>Janela<br><b>${p.janela_analise}d</b></div>
         </div>
         <div class="meta">Gerado em ${geradoEm}${p.gerado_por ? ' · por ' + p.gerado_por : ''}</div>
       </a>`;

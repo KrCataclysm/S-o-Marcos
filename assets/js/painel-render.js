@@ -2,12 +2,14 @@
    quanto pela tela de histórico (dados recuperados do Supabase). */
 let RESULT = null;
 let filtroCrit = null;
+let filtroDiasMax = null;
 let anonimo = false;
 let anonMap = new Map();
 
 function showPainel(result) {
   RESULT = result;
   filtroCrit = null;
+  filtroDiasMax = null;
   anonimo = false;
   $('chkAnonimo').checked = false;
   $('painel').style.display = 'block';
@@ -76,17 +78,32 @@ function renderPainel() {
   renderDetalhe();
 }
 
+// Ruptura = estoque zerado/negativo, tratado como 0 dias (o mais urgente possível).
+function diasEfetivos(d) {
+  if (d.dias != null) return d.dias;
+  if (d.diasTxt === 'Ruptura') return 0;
+  return null;
+}
+
 function renderDetalhe() {
   const busca = norm($('fBusca').value);
-  const rows = RESULT.detalhe.filter(d => {
+  let rows = RESULT.detalhe.filter(d => {
     if (filtroCrit && d.crit !== filtroCrit) return false;
     if (busca) {
       const blob = norm([d.produto, d.forn, d.comprador, d.cat, d.fonte].join(' '));
       if (!blob.includes(busca)) return false;
     }
+    if (filtroDiasMax != null) {
+      const dv = diasEfetivos(d);
+      if (dv == null || dv > filtroDiasMax) return false;
+    }
     return true;
   });
-  $('fInfo').textContent = rows.length + ' de ' + RESULT.detalhe.length + ' itens' + (filtroCrit ? ' · filtro: ' + filtroCrit : '');
+  if (filtroDiasMax != null) rows = rows.slice().sort((a, b) => diasEfetivos(a) - diasEfetivos(b));
+  $('chipDias').classList.toggle('active', filtroDiasMax != null);
+  $('fInfo').textContent = rows.length + ' de ' + RESULT.detalhe.length + ' itens' +
+    (filtroCrit ? ' · filtro: ' + filtroCrit : '') +
+    (filtroDiasMax != null ? ' · até ' + filtroDiasMax + ' dias de estoque (menor primeiro)' : '');
   $('tblDet').innerHTML = '<thead><tr><th>Fornecedor</th><th>Categoria na pauta</th><th>Produto comprado</th><th class="num">Saldo</th><th class="num">Dias de estoque</th><th class="num">Em trânsito</th><th>Fonte alternativa</th><th>Criticidade</th><th class="num">Valor na pauta (R$)</th><th>Obs.</th></tr></thead><tbody>' +
     rows.map(d => `<tr>
       <td><b>${nomeExibido(d.forn)}</b></td><td>${d.cat || '—'}</td><td>${d.produto}</td>
@@ -145,9 +162,24 @@ function exportExcel() {
   XLSX.writeFile(wb, 'Painel_Criticidade_Fornecedores_Pauta_' + dd + '.xlsx');
 }
 
+function aplicarFiltroDias() {
+  if (!RESULT) return;
+  const v = parseFloat($('fDiasMax').value);
+  filtroDiasMax = Number.isFinite(v) && v >= 0 ? v : null;
+  renderDetalhe();
+}
+
 function initPanelInteractions() {
   $('fBusca').addEventListener('input', () => RESULT && renderDetalhe());
-  $('chipTodos').addEventListener('click', () => { filtroCrit = null; $('fBusca').value = ''; if (RESULT) renderPainel(); });
+  $('chipTodos').addEventListener('click', () => {
+    filtroCrit = null;
+    filtroDiasMax = null;
+    $('fBusca').value = '';
+    $('fDiasMax').value = '';
+    if (RESULT) renderPainel();
+  });
+  $('chipDias').addEventListener('click', aplicarFiltroDias);
+  $('fDiasMax').addEventListener('keydown', e => { if (e.key === 'Enter') aplicarFiltroDias(); });
   document.querySelectorAll('#regua .cell').forEach(c => c.addEventListener('click', () => {
     if (!RESULT) return;
     filtroCrit = filtroCrit === c.dataset.f ? null : c.dataset.f;
